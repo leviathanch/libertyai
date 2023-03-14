@@ -31,8 +31,9 @@ after that you can install LibertyAI with
 ## Web interface
 
 You can go into the folder web and execute:
-   npm ci
-   npm run dev # or: npm run build
+
+    npm ci
+    npm run dev # or: npm run build
 
 
 
