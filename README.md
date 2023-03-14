@@ -28,3 +28,11 @@ after that you can install LibertyAI with
 
     pip3 install -e .
 
+## Web interface
+
+You can go into the folder web and execute:
+   npm ci
+   npm run dev # or: npm run build
+
+
+
