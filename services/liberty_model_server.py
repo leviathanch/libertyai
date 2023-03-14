@@ -8,10 +8,6 @@ from LibertyAI import get_configuration
 
 app = Flask(__name__)
 
-API_KEY = os.environ['LIBERTYAI_API_KEY']
-
-BUSY_STATE = False
-
 @app.route('/generation', methods=['POST'])
 def chat():
     text = request.form['input']
@@ -48,6 +44,8 @@ if __name__ == '__main__':
         tokenizer=tokenizer,
         max_new_tokens=100,
     )
+    API_KEY = os.environ['LIBERTYAI_API_KEY']
+    BUSY_STATE = False
     http_server = WSGIServer(('', int(config.get('DEFAULT', 'ModelServicePort'))), app)
     http_server.serve_forever()
 
