@@ -20,7 +20,7 @@ def generation():
 
     if key == os.environ['LIBERTYAI_API_KEY']:
         sem.acquire()
-        response = pipe(text, temperature=int(temp))
+        response = pipe(text, temperature=float(temp))
         sem.release()
         return {'response': response}
     else:
