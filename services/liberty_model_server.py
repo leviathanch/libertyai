@@ -15,14 +15,18 @@ BUSY_STATE = False
 @app.route('/generation', methods=['POST'])
 def chat():
     text = request.form['input']
-    temp = request.form['temperatue']
     key = request.form['API_KEY']
+    try:
+        temp = request.form['temperature']
+    except:
+        temp = 0
+
     if key == API_KEY:
         if BUSY_STATE:
             return {'busy': "Please try again later"}
         else:
             BUSY_STATE = True
-            response = pipe(text, temperature=temp)
+            response = pipe(text, temperature=int(temp))
             BUSY_STATE = False
             return {'response': response}
     else:
