@@ -21,5 +21,6 @@ setup(
         'transformers',
         'flask',
         'langchain',
+        'gevent',
     ],
 )
