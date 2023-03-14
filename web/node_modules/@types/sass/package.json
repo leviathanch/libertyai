@@ -1,0 +1,12 @@
+{
+    "name": "@types/sass",
+    "version": "1.45.0",
+    "description": "Stub TypeScript definitions entry for sass, which provides its own types definitions",
+    "main": "",
+    "scripts": {},
+    "license": "MIT",
+    "dependencies": {
+        "sass": "*"
+    },
+    "deprecated": "This is a stub types definition. sass provides its own type definitions, so you do not need this installed."
+}
