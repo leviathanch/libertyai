@@ -26,7 +26,7 @@ def generation():
         sem.acquire()
         response = pipe(text, temperature=float(temp), max_new_tokens=int(max_tokens))
         sem.release()
-        return {'response': response}
+        return response
     else:
         return {'error': "Invalid API key"}
 
