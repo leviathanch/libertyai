@@ -16,8 +16,9 @@ def get_configuration():
         config.read(filename)
     else:
         config.set('DEFAULT', 'ModelServicePort', value='5001')
-        config.set('DEFAULT', 'LLMDir', value='~/HF_LLaMA/llama-7b')
-        config.set('DEFAULT', 'TokenizerDir', value='~/HF_LLaMA/tokenizer')
+        config.set('DEFAULT', 'ChatBotServicePort', value='5002')
+        config.set('DEFAULT', 'LLMDir', value='/home/user/HF_LLaMA/llama-7b')
+        config.set('DEFAULT', 'TokenizerDir', value='/home/user/HF_LLaMA/tokenizer')
         Path(os.path.dirname(os.path.abspath(filename))).mkdir( parents=True, exist_ok=True )
         with open(filename, 'w') as cf:
             config.write(cf)
