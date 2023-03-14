@@ -17,10 +17,14 @@ def generation():
         temp = request.form['temperature']
     except:
         temp = 0
+    try:
+        max_tokens = request.form['max_new_tokens']
+    except:
+        max_tokens = 20
 
     if key == os.environ['LIBERTYAI_API_KEY']:
         sem.acquire()
-        response = pipe(text, temperature=float(temp))
+        response = pipe(text, temperature=float(temp), max_new_tokens=int(max_tokens))
         sem.release()
         return {'response': response}
     else:
