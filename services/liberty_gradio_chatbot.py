@@ -96,8 +96,7 @@ def chat(message, history):
     history.append((message, response))
     return history, history
 
-with gr.Blocks() as block:
-    title="LibertyAI"
+with gr.Blocks(title="LibertyAI") as block:
     description=f"A Libertarian chatbot"
     state = gr.outputs.State()
     chatbot = gr.Chatbot()
