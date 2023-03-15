@@ -4,6 +4,7 @@ import os
 import threading
 
 from transformers import LLaMATokenizer, LLaMAForCausalLM, pipeline
+from accelerate import infer_auto_device_map
 
 from LibertyAI import get_configuration
 
@@ -42,6 +43,7 @@ if __name__ == '__main__':
         device_map="auto",
         torch_dtype="auto",
     )
+    device_map = infer_auto_device_map(model, max_memory={0: "8GiB", 1: "8GiB"}) # we need space for inference
     pipe = pipeline(
         "text-generation",
         model=model,
