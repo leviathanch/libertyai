@@ -106,4 +106,4 @@ with gr.Blocks() as block:
     gr.Markdown("Use SHIFT+ENTER for submitting text or press submit.")
     btn = gr.Button(value="SUBMIT")
     btn.click(chat, [message, state], [chatbot, state])
-    block.launch()
+    block.launch(server_name="0.0.0.0")
