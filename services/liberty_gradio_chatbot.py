@@ -97,9 +97,13 @@ def chat(message, history):
     return history, history
 
 with gr.Blocks() as block:
+    title="LibertyAI"
+    description=f"A Libertarian chatbot"
     state = gr.outputs.State()
     chatbot = gr.Chatbot()
     message = gr.Textbox(lines=10)
     message.submit(chat, [message, state], [chatbot, state])
-    gr.Markdown("Use SHIFT+ENTER for submitting text.")
+    gr.Markdown("Use SHIFT+ENTER for submitting text or press submit.")
+    btn = gr.Button(value="SUBMIT")
+    btn.click(chat, [message, state], [chatbot, state])
     block.launch()
