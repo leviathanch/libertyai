@@ -1,4 +1,5 @@
 import gradio as gr
+from fastapi import FastAPI
 
 from langchain.llms import HuggingFacePipeline
 from langchain.chains import ConversationChain
@@ -105,4 +106,6 @@ with gr.Blocks(title="LibertyAI") as block:
     gr.Markdown("Use SHIFT+ENTER for submitting text or press submit.")
     btn = gr.Button(value="SUBMIT")
     btn.click(chat, [message, state], [chatbot, state])
-    block.launch(server_name="0.0.0.0")
+
+app = FastAPI()
+app.mount("/web", block)
