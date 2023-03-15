@@ -43,7 +43,8 @@ if __name__ == '__main__':
     print("Loading model...")
     model = LLaMAForCausalLM.from_pretrained(
         config.get('DEFAULT', 'LLMDir'),
-        device_map="auto",
+        #device_map="auto",
+        device_map="cpu",
         torch_dtype="auto",
     )
     print("Loaded model.")
