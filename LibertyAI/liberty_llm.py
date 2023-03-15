@@ -16,14 +16,15 @@ class LibertyLLM(LLM):
         return "liberty"
 
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
-        #if stop is not None:
-        #    raise ValueError("stop kwargs are not permitted.")
         json_data = {
             'input' : prompt,
             'temperature' : 0.4,
             'API_KEY': os.environ['LIBERTYAI_API_KEY'],
             'max_new_tokens': 20,
         }
+        if stop is not None:
+            json_data['stop_tokens'] = stop
+
         print('json_data',json_data)
         response = requests.post(
             self.endpoint,

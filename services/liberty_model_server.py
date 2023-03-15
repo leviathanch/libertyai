@@ -21,10 +21,16 @@ def generation():
         temp = data['temperature']
     except:
         temp = 0
+
     try:
         max_tokens = data['max_new_tokens']
     except:
         max_tokens = 20
+
+    try:
+        stop_tokens = data['stop_tokens']
+    except:
+        stop_tokens = None
 
     if key == os.environ['LIBERTYAI_API_KEY']:
         sem.acquire()
@@ -36,7 +42,12 @@ def generation():
             max_new_tokens=int(max_tokens),
         )
         llm = HuggingFacePipeline(pipeline=pipe)
-        generated_text = llm(text)
+
+        if stop_tokens:
+            generated_text = llm(text, stop=stop_tokens)
+        else:
+            generated_text = llm(text)
+
         sem.release()
         return {'generated_text': generated_text}
     else:
