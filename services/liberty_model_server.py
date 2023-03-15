@@ -9,7 +9,7 @@ from LibertyAI import get_configuration
 
 app = Flask(__name__)
 
-@app.route('/generation', methods=['POST'])
+@app.route('/api/generation', methods=['POST'])
 def generation():
     text = request.form['input']
     key = request.form['API_KEY']
