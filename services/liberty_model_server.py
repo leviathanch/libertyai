@@ -39,7 +39,7 @@ if __name__ == '__main__':
     )
     model = LLaMAForCausalLM.from_pretrained(
         config.get('DEFAULT', 'LLMDir'),
-        device_map="balanced",
+        device_map="auto",
         torch_dtype="auto",
     )
     pipe = pipeline(
