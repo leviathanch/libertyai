@@ -35,15 +35,23 @@ def generation():
 
 if __name__ == '__main__':
     config = get_configuration()
+    print("Loading tokenizer...")
     tokenizer = LLaMATokenizer.from_pretrained(
         config.get('DEFAULT', 'TokenizerDir')
     )
+    print("Loaded tokenizer")
+    print("Loading model...")
     model = LLaMAForCausalLM.from_pretrained(
         config.get('DEFAULT', 'LLMDir'),
         device_map="auto",
         torch_dtype="auto",
     )
+    print("Loaded model.")
     device_map = infer_auto_device_map(model, max_memory={0: "8GiB", 1: "8GiB"}) # we need space for inference
+    print("New device map after remapping:")
+    print(device_map)
+    
+    print("Generating pipe")
     pipe = pipeline(
         "text-generation",
         model=model,
