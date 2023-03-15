@@ -6,6 +6,8 @@ import os
 class LibertyLLM(LLM):
 
     endpoint: str
+    temperature: float
+    max_tokens: int
 
     json_headers = {
         'content-type': 'application/json',
@@ -18,9 +20,9 @@ class LibertyLLM(LLM):
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
         json_data = {
             'input' : prompt,
-            'temperature' : 0.4,
+            'temperature' : self.temperature,
             'API_KEY': os.environ['LIBERTYAI_API_KEY'],
-            'max_new_tokens': 20,
+            'max_new_tokens': self.max_tokens,
         }
         if stop is not None:
             json_data['stop_tokens'] = stop
