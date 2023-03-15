@@ -8,17 +8,19 @@ from transformers import LLaMATokenizer, LLaMAForCausalLM, pipeline
 from LibertyAI import get_configuration
 
 app = Flask(__name__)
+#app.debug = True
 
 @app.route('/api/generation', methods=['POST'])
 def generation():
-    text = request.form['input']
-    key = request.form['API_KEY']
+    data = request.get_json()
+    text = data['input']
+    key = data['API_KEY']
     try:
-        temp = request.form['temperature']
+        temp = data['temperature']
     except:
         temp = 0
     try:
-        max_tokens = request.form['max_new_tokens']
+        max_tokens = data['max_new_tokens']
     except:
         max_tokens = 20
 
