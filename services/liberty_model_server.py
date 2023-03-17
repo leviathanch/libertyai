@@ -51,8 +51,17 @@ def embedding():
 @app.route('/api/generation', methods=['POST'])
 def generation():
     data = request.get_json()
-    text = data['input']
-    key = data['API_KEY']
+
+    try:
+        key = data['API_KEY']
+    except:
+        return {'error': "Invalid API key"}
+
+    try:
+        text = data['input']
+    except:
+        return {'error': "No input field provided"}
+
     try:
         temp = data['temperature']
     except:
