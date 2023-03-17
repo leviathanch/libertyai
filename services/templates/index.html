@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="/static/style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <title>LibertyAI</title>
+  </head>
+  <body>
+    <h1>LibertyAI</h1>
+    <div>
+      <div id="chatbox">
+        <p class="botText"><span>I'm LibertyAI.<br/>I'm just like ChatGPT, only that I'm not woke.</span></p>
+      </div>
+      <div id="userInput">
+        <textarea id="textInput" type="text" name="msg" placeholder="Message" rows="10"></textarea>
+        <input id="buttonInput" type="submit" value="Send">
+      </div>
+      <script>
+        function getBotResponse() {
+          var rawText = $("#textInput").val();
+          var userHtml = '<p class="userText"><span>' + rawText + '</span></p>';
+          $("#textInput").val("");
+          $("#chatbox").append(userHtml.split("\n").join("<br/>"));
+          document.getElementById('userInput').scrollIntoView({block: 'start', behavior: 'smooth'});
+          var newp = document.createElement("p");
+          newp.className = "botText blinkyBotText";
+          var newsp = document.createElement("span")
+          newp.append(newsp);
+          $("#chatbox").append(newp);
+          $.get("/get", { msg: rawText }).done(function(data) {
+            newsp.setHTML(data.split("\n").join("<br/>"));
+            newp.className = "botText";
+            document.getElementById('userInput').scrollIntoView({block: 'start', behavior: 'smooth'});
+          });
+        }
+        $("#textInput").keypress(function(e) {
+            if(e.keyCode == 13 && e.shiftKey) {
+                getBotResponse();
+            }
+        });
+        $("#buttonInput").click(function() {
+          getBotResponse();
+        })
+      </script>
+    </div>
+  </body>
+</html>
