@@ -27,5 +27,6 @@ setup(
         'pgvector',
         'psycopg2',
         'gevent',
+        'typing',
     ],
 )

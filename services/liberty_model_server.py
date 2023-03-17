@@ -1,3 +1,5 @@
+from typing import Any
+
 from flask import Flask, request
 from gevent.pywsgi import WSGIServer
 
