@@ -1,6 +1,6 @@
 from flask import Flask, request
 from gevent.pywsgi import WSGIServer
-import os
+
 import threading
 
 from transformers import LLaMATokenizer, LLaMAForCausalLM, pipeline
@@ -9,8 +9,42 @@ from LibertyAI import get_configuration
 
 from langchain.llms import HuggingFacePipeline
 
+from langchain.embeddings import SelfHostedEmbeddings
+
 app = Flask(__name__)
 #app.debug = True
+
+
+def get_pipeline() -> Any:
+    pipe = pipeline(
+        "feature-extraction",
+        model=model,
+        tokenizer=tokenizer,
+    )
+    return pipe
+
+
+def inference_fn(pipeline: Any, prompt: str) -> Any:
+    return pipeline(prompt)
+
+@app.route('/api/embedding', methods=['POST'])
+def generation():
+    data = request.get_json()
+    documents = data['documents']
+    key = data['API_KEY']
+
+    if key == config.get('DEFAULT', 'API_KEY'):
+        sem.acquire()
+
+        embedding = SelfHostedEmbeddings(
+            model_load_fn=get_pipeline,
+            inference_fn=inference_fn
+        )
+        output = embedding.embed_documents(documents)
+        sem.release()
+        return {'output': output}
+    else:
+        return {'error': "Invalid API key"}
 
 @app.route('/api/generation', methods=['POST'])
 def generation():
@@ -32,7 +66,7 @@ def generation():
     except:
         stop_tokens = None
 
-    if key == os.environ['LIBERTYAI_API_KEY']:
+    if key == config.get('DEFAULT', 'API_KEY'):
         sem.acquire()
         pipe = pipeline(
             "text-generation",
@@ -74,8 +108,8 @@ if __name__ == '__main__':
         'model.layers.10': 0,
         'model.layers.11': 0,
         'model.layers.12': 0,
-        'model.layers.13': 0,
-        'model.layers.14': 0,
+        'model.layers.13': 1,
+        'model.layers.14': 1,
         'model.layers.15': 1,
         'model.layers.16': 1,
         'model.layers.17': 1,
