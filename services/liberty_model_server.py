@@ -11,7 +11,7 @@ from LibertyAI import get_configuration
 
 from langchain.llms import HuggingFacePipeline
 
-from langchain.embeddings.huggingface import HuggingFaceEmbedding
+from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 
 app = Flask(__name__)
 #app.debug = True
