@@ -39,16 +39,16 @@ def embedding():
         return {'error': "Invalid API key"}
 
     try:
-        documents = data['documents']
+        text = data['text']
     except:
-        return {'error': "No documents provided"}
+        return {'error': "No text provided"}
 
 
     if key == config.get('DEFAULT', 'API_KEY'):
         sem.acquire()
-        output = embedding.embed_documents(documents)
+        output = embedding.embed_query(documents)
         sem.release()
-        return {'embeddings': output}
+        return {'embedding': output}
     else:
         return {'error': "Invalid API key"}
 
