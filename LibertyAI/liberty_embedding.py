@@ -28,7 +28,7 @@ class LibertyEmbeddings(Embeddings, BaseModel):
         except:
             reply = []
 
-        reply += [0]*len(reply)
+        reply += [1]*len(reply)
 
         return reply
 
