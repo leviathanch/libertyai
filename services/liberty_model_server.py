@@ -43,10 +43,9 @@ def embedding():
     except:
         return {'error': "No text provided"}
 
-
     if key == config.get('DEFAULT', 'API_KEY'):
         sem.acquire()
-        output = embedding.embed_query(documents)
+        output = embedding.embed_query(text)
         sem.release()
         return {'embedding': output}
     else:
