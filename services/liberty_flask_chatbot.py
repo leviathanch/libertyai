@@ -16,8 +16,11 @@ from langchain.memory import (
 )
 from langchain import PromptTemplate, LLMChain
 
-from LibertyAI import LibertyLLM
-from LibertyAI import get_configuration
+from LibertyAI import (
+    LibertyLLM,
+    LibertyEmbeddings,
+    get_configuration,
+)
 
 app = Flask(__name__)
 
@@ -60,14 +63,15 @@ conversation = ConversationChain(
     prompt=chat_prompt,
 )
 
-#loader = TextLoader('/home/leviathan/libertyai/critique_of_interventionism.txt')
-loader = TextLoader('/home/leviathan/libertyai/test.txt')
+loader = TextLoader('/home/leviathan/libertyai/critique_of_interventionism.txt')
+#loader = TextLoader('/home/leviathan/libertyai/test.txt')
 documents = loader.load()
 text_splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=0)
 docs = text_splitter.split_documents(documents)
-embeddings = HuggingFaceEmbeddings()
+embeddings = LibertyEmbeddings(endpoint = "http://libergpt.univ.social/api/embedding")
 
 config = get_configuration()
+
 CONNECTION_STRING = PGVector.connection_string_from_db_params(
     driver="psycopg2",
     host=config.get('DATABASE', 'PGSQL_SERVER'),
@@ -80,7 +84,7 @@ CONNECTION_STRING = PGVector.connection_string_from_db_params(
 db = PGVector.from_documents(
     embedding=embeddings,
     documents=docs,
-    collection_name="critique_of_interventionism",
+    collection_name="test",
     connection_string=CONNECTION_STRING,
 )
 

@@ -14,20 +14,6 @@ from langchain.llms import HuggingFacePipeline
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 
 app = Flask(__name__)
-#app.debug = True
-
-
-def get_pipeline() -> Any:
-    pipe = pipeline(
-        "feature-extraction",
-        model=model,
-        tokenizer=tokenizer,
-    )
-    return pipe
-
-
-def inference_fn(pipeline: Any, prompt: str) -> Any:
-    return pipeline(prompt)
 
 @app.route('/api/embedding', methods=['POST'])
 def embedding():
@@ -119,9 +105,9 @@ if __name__ == '__main__':
         'model.layers.7': 0,
         'model.layers.8': 0,
         'model.layers.9': 0,
-        'model.layers.10': 0,
-        'model.layers.11': 0,
-        'model.layers.12': 0,
+        'model.layers.10': 1,
+        'model.layers.11': 1,
+        'model.layers.12': 1,
         'model.layers.13': 1,
         'model.layers.14': 1,
         'model.layers.15': 1,
