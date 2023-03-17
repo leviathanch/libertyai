@@ -19,8 +19,13 @@ setup(
     long_description=open('README.md').read(),
     install_requires=[
         'transformers',
+        'sentence_transformers',
         'flask',
+        'flask-login',
+        'flask-sqlalchemy',
         'langchain',
+        'pgvector',
+        'psycopg2',
         'gevent',
     ],
 )
