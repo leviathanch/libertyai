@@ -11,9 +11,7 @@ from LibertyAI import get_configuration
 
 from langchain.llms import HuggingFacePipeline
 
-#from langchain.embeddings import SelfHostedEmbeddings
-from langchain.embeddings import HuggingFaceInstructEmbeddings
-
+from langchain.embeddings.huggingface import HuggingFaceEmbedding
 
 app = Flask(__name__)
 #app.debug = True
@@ -50,7 +48,7 @@ def embedding():
         sem.acquire()
         output = embedding.embed_documents(documents)
         sem.release()
-        return {'output': output}
+        return {'embeddings': output}
     else:
         return {'error': "Invalid API key"}
 
@@ -156,10 +154,7 @@ if __name__ == '__main__':
     print("Loaded model.")
     
     print("Load embedding model")
-    embeddings = HuggingFaceInstructEmbeddings(
-        embed_instruction="Represent the book passage for retrieval: ",
-        query_instruction="Represent the question for retrieving supporting texts from the book passage: "
-    )
+    embedding = HuggingFaceEmbeddings()
     print("Loaded model.")
 
     sem = threading.Semaphore()
