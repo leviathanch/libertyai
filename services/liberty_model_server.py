@@ -30,7 +30,7 @@ def inference_fn(pipeline: Any, prompt: str) -> Any:
     return pipeline(prompt)
 
 @app.route('/api/embedding', methods=['POST'])
-def generation():
+def embedding():
     data = request.get_json()
     documents = data['documents']
     key = data['API_KEY']
