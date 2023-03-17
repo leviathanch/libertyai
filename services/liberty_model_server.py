@@ -11,7 +11,9 @@ from LibertyAI import get_configuration
 
 from langchain.llms import HuggingFacePipeline
 
-from langchain.embeddings import SelfHostedEmbeddings
+#from langchain.embeddings import SelfHostedEmbeddings
+from langchain.embeddings import HuggingFaceInstructEmbeddings
+
 
 app = Flask(__name__)
 #app.debug = True
@@ -32,16 +34,20 @@ def inference_fn(pipeline: Any, prompt: str) -> Any:
 @app.route('/api/embedding', methods=['POST'])
 def embedding():
     data = request.get_json()
-    documents = data['documents']
-    key = data['API_KEY']
+
+    try:
+        key = data['API_KEY']
+    except:
+        return {'error': "Invalid API key"}
+
+    try:
+        documents = data['documents']
+    except:
+        return {'error': "No documents provided"}
+
 
     if key == config.get('DEFAULT', 'API_KEY'):
         sem.acquire()
-
-        embedding = SelfHostedEmbeddings(
-            model_load_fn=get_pipeline,
-            inference_fn=inference_fn
-        )
         output = embedding.embed_documents(documents)
         sem.release()
         return {'output': output}
@@ -148,6 +154,14 @@ if __name__ == '__main__':
         torch_dtype="auto",
     )
     print("Loaded model.")
+    
+    print("Load embedding model")
+    embeddings = HuggingFaceInstructEmbeddings(
+        embed_instruction="Represent the book passage for retrieval: ",
+        query_instruction="Represent the question for retrieving supporting texts from the book passage: "
+    )
+    print("Loaded model.")
+
     sem = threading.Semaphore()
     http_server = WSGIServer(('', int(config.get('DEFAULT', 'ModelServicePort'))), app)
     http_server.serve_forever()
