@@ -14,10 +14,6 @@ from langchain.llms import HuggingFacePipeline
 
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 
-from sentence_transformers import SentenceTransformer, util
-
-import pandas as pd
-
 app = Flask(__name__)
 
 @app.route('/api/generation', methods=['POST'])

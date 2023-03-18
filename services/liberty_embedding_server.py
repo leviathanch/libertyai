@@ -16,8 +16,6 @@ from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 
 from sentence_transformers import SentenceTransformer, util
 
-import pandas as pd
-
 app = Flask(__name__)
 
 @app.route('/api/embedding', methods=['POST'])
@@ -48,7 +46,7 @@ if __name__ == '__main__':
         config.get('DEFAULT', 'TokenizerDir')
     )
 
-    embedding = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    embedding = SentenceTransformer('microsoft/mpnet-base')
 
     sem = threading.Semaphore(10)
     http_server = WSGIServer(('', int(config.get('DEFAULT', 'EmbeddingServicePort'))), app)
