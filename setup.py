@@ -11,7 +11,9 @@ setup(
     author_email='leviathan@libresilicon.com',
     packages=['LibertyAI'],
     scripts=[
-        'services/liberty_model_server.py'
+        'services/liberty_model_server.py',
+        'services/liberty_embedding_server.py',
+        'services/liberty_flask_chatbot.py',
     ],
     url='https://redmine.libresilicon.com/projects/danube-river',
     license='LICENSE.txt',
