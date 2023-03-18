@@ -14,8 +14,7 @@ def get_configuration():
         config.read(filename)
     else:
         # General stuff for getting it to start up
-        config.set('DEFAULT', 'ModelServicePort', value='5001')
-        config.set('DEFAULT', 'EmbeddingServicePort', value='5002')
+        config.set('DEFAULT', 'APIServicePort', value='5001')
         config.set('DEFAULT', 'LLMDir', value='/home/user/HF_LLaMA/llama-7b')
         config.set('DEFAULT', 'TokenizerDir', value='/home/user/HF_LLaMA/tokenizer')
         config.set('DEFAULT', 'API_KEY', value=hashlib.sha256(os.urandom(32)).hexdigest())

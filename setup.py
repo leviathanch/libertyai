@@ -11,8 +11,7 @@ setup(
     author_email='leviathan@libresilicon.com',
     packages=['LibertyAI'],
     scripts=[
-        'services/liberty_model_server.py',
-        'services/liberty_embedding_server.py',
+        'services/liberty_api_server.py',
         'services/liberty_flask_chatbot.py',
     ],
     url='https://redmine.libresilicon.com/projects/danube-river',
@@ -20,8 +19,10 @@ setup(
     description='A clone of ChatGPT, based on LLaMA, without woke censorship',
     long_description=open('README.md').read(),
     install_requires=[
+        'argparse',
         'appdirs',
         'bs4',
+        'numpy',
         'transformers',
         'sentence_transformers',
         'flask',
