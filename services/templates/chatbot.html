@@ -27,7 +27,7 @@
           var newsp = document.createElement("span")
           newp.append(newsp);
           $("#chatbox").append(newp);
-          $.get("/get", { msg: rawText }).done(function(data) {
+          $.get("/chatbot/get", { msg: rawText }).done(function(data) {
             newsp.setHTML(data.split("\n").join("<br/>"));
             newp.className = "botText";
             document.getElementById('userInput').scrollIntoView({block: 'start', behavior: 'smooth'});

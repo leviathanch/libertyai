@@ -4,6 +4,7 @@ from flask import Flask, request
 from gevent.pywsgi import WSGIServer
 
 import threading
+import torch
 
 from transformers import LLaMATokenizer, LLaMAForCausalLM, pipeline
 
@@ -13,29 +14,11 @@ from langchain.llms import HuggingFacePipeline
 
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 
+from sentence_transformers import SentenceTransformer, util
+
+import pandas as pd
+
 app = Flask(__name__)
-
-@app.route('/api/embedding', methods=['POST'])
-def embedding():
-    data = request.get_json()
-
-    try:
-        key = data['API_KEY']
-    except:
-        return {'error': "Invalid API key"}
-
-    try:
-        text = data['text']
-    except:
-        return {'error': "No text provided"}
-
-    if key == config.get('DEFAULT', 'API_KEY'):
-        sem.acquire()
-        output = embedding.embed_query(text)
-        sem.release()
-        return {'embedding': output}
-    else:
-        return {'error': "Invalid API key"}
 
 @app.route('/api/generation', methods=['POST'])
 def generation():
@@ -92,6 +75,7 @@ if __name__ == '__main__':
     tokenizer = LLaMATokenizer.from_pretrained(
         config.get('DEFAULT', 'TokenizerDir')
     )
+
     print("Loading model...")
     dmap = {
         'model.embed_tokens': 1,
@@ -136,13 +120,10 @@ if __name__ == '__main__':
         device_map=dmap,
         torch_dtype="auto",
     )
-    print("Loaded model.")
-    
-    print("Load embedding model")
-    embedding = HuggingFaceEmbeddings()
+    model.eval()
     print("Loaded model.")
 
-    sem = threading.Semaphore()
+    sem = threading.Semaphore(10)
     http_server = WSGIServer(('', int(config.get('DEFAULT', 'ModelServicePort'))), app)
     http_server.serve_forever()
 

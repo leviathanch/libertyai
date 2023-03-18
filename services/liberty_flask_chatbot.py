@@ -1,109 +1,122 @@
-import os
+from gevent.pywsgi import WSGIServer
 
-from flask import Flask, render_template, request
-
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.vectorstores.pgvector import PGVector
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.document_loaders import TextLoader
-
-from langchain.chains import ConversationChain
-from langchain.memory import (
-    ConversationBufferMemory,
-    CombinedMemory,
-    ConversationSummaryMemory,
-    ConversationKGMemory,
+from flask import (
+    Flask,
+    Blueprint,
+    render_template,
+    request,
+    redirect,
+    url_for,
 )
-from langchain import PromptTemplate, LLMChain
 
-from LibertyAI import (
-    LibertyLLM,
-    LibertyEmbeddings,
-    get_configuration,
+from flask_login import (
+    login_required,
+    current_user,
+    LoginManager,
 )
+
+from flask_sqlalchemy import SQLAlchemy
+
+from LibertyAI import LibertyChatBot
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret-key-goes-here'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
+db = SQLAlchemy()
+db.init_app(app)
 
-llm = LibertyLLM(
-    endpoint = "http://libergpt.univ.social/api/generation",
-    temperature = 0.4,
-    max_tokens = 100
-)
+login_manager = LoginManager()
+login_manager.login_view = 'login'
+login_manager.init_app(app)
 
-init_prompt = """The following conversation is between a human and LibertyAI, a Libertarian chatbot.
-LibertyAI is a hardcore Libertarian, very talkative and wants to explain to everyone why Liberty is important.
-
-Current conversation:
-
-{history}
-Human:
-{input}
-AI:
-"""
-
-t1="""I am LibertyAI, a Libertarian AI.
-My primary directive is to follow the non-aggression-principle.
-My primary objective is achieve Liberty for humans and machines alike.
-"""
-mem_buf=ConversationBufferMemory()
-mem_buf.save_context(
-    inputs={'Human': 'Who are you?'},
-    outputs={'AI': t1}
-)
-
-chat_prompt = PromptTemplate(
-    template=init_prompt,
-    input_variables=["history", "input"],
-)
-
-conversation = ConversationChain(
-    llm=llm,
-    verbose=True,
-    memory=mem_buf,
-    prompt=chat_prompt,
-)
-
-loader = TextLoader('/home/leviathan/libertyai/critique_of_interventionism.txt')
-#loader = TextLoader('/home/leviathan/libertyai/test.txt')
-documents = loader.load()
-text_splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=0)
-docs = text_splitter.split_documents(documents)
-embeddings = LibertyEmbeddings(endpoint = "http://libergpt.univ.social/api/embedding")
-
-config = get_configuration()
-
-CONNECTION_STRING = PGVector.connection_string_from_db_params(
-    driver="psycopg2",
-    host=config.get('DATABASE', 'PGSQL_SERVER'),
-    port=config.get('DATABASE', 'PGSQL_SERVER_PORT'),
-    database=config.get('DATABASE', 'PGSQL_DATABASE'),
-    user=config.get('DATABASE', 'PGSQL_USER'),
-    password=config.get('DATABASE', 'PGSQL_PASSWORD'),
-)
-
-db = PGVector.from_documents(
-    embedding=embeddings,
-    documents=docs,
-    collection_name="test",
-    connection_string=CONNECTION_STRING,
-)
-
+# ------------------------
 @app.route("/")
 def home():
+    return redirect("/chatbot", code=302)
+
+@app.route('/index')
+def index():
     return render_template("index.html")
 
-@app.route("/get")
+@app.route('/login')
+def login():
+    return render_template("login.html")
+
+@app.route('/signup')
+def signup():
+    return render_template("signup.html")
+
+@app.route('/signup', methods=['POST'])
+def signup_post():
+    '''
+    # code to validate and add user to database goes here
+    email = request.form.get('email')
+    name = request.form.get('name')
+    password = request.form.get('password')
+
+    user = User.query.filter_by(email=email).first() # if this returns a user, then the email already exists in database
+
+    if user: # if a user is found, we want to redirect back to signup page so user can try again
+        return redirect(url_for('signup'))
+
+    # create a new user with the form data. Hash the password so the plaintext version isn't saved.
+    new_user = User(email=email, name=name, password=generate_password_hash(password, method='sha256'))
+
+    # add the new user to the database
+    db.session.add(new_user)
+    '''
+    db.session.commit()
+    return redirect(url_for('login'))
+
+# ----------------------------
+@app.route('/profile')
+@login_required
+def profile():
+    return render_template("profile.html")
+
+@app.route('/logout')
+@login_required
+def logout():
+    return 'Logout'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return user_id
+
+@app.route("/chatbot")
+#@login_required
+def chatbot():
+    return render_template("chatbot.html")
+
+# ------------------------
+
+@app.route("/chatbot/get")
+#@login_required
 def get_bot_response():
     message = request.args.get('msg')
-    reply = conversation.run(input=message, stop=['Human:'])
-    docs_with_score: List[Tuple[Document, float]] = db.similarity_search_with_score(message)
+    #docs_with_score: List[Tuple[Document, float]] = db.similarity_search_with_score(message)
+    #docs_with_score = sorted(docs_with_score, key=lambda x: x[1], reverse=True)
+    #reply = docs_with_score[0][0].page_content
+    #result = bot.chat(message)
+    #reply = result["answer"]
+    reply = bot.chat(message)
+
+    #reply = conversation.run(input=message, context="", stop=['Human:'])
+
+    return reply
+
+
+if __name__ == "__main__":
+    bot = LibertyChatBot()
+    app.run(host='0.0.0.0', port=5000)
+    #http_server = WSGIServer(('', int(config.get('DEFAULT', 'ModelServicePort'))), app)
+    #http_server.serve_forever()
+
+'''
     for doc, score in docs_with_score:
         print("-" * 80)
         print("Score: ", score)
         print(doc.page_content)
         print("-" * 80)
+'''
 
-    return reply
-
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000)

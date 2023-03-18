@@ -28,8 +28,6 @@ class LibertyEmbeddings(Embeddings, BaseModel):
         except:
             reply = []
 
-        reply += [1]*len(reply)
-
         return reply
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
