@@ -42,12 +42,7 @@ def embedding():
 
 if __name__ == '__main__':
     config = get_configuration()
-    tokenizer = LLaMATokenizer.from_pretrained(
-        config.get('DEFAULT', 'TokenizerDir')
-    )
-
     embedding = SentenceTransformer('microsoft/mpnet-base')
-
     sem = threading.Semaphore(10)
     http_server = WSGIServer(('', int(config.get('DEFAULT', 'EmbeddingServicePort'))), app)
     http_server.serve_forever()
