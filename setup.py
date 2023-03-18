@@ -31,5 +31,6 @@ setup(
         'gevent',
         'typing',
         'torch==2.0.0',
+        'SQLAlchemy==1.4.18',
     ],
 )
