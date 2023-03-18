@@ -20,6 +20,7 @@ setup(
     description='A clone of ChatGPT, based on LLaMA, without woke censorship',
     long_description=open('README.md').read(),
     install_requires=[
+        'appdirs',
         'transformers',
         'sentence_transformers',
         'flask',
