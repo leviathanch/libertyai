@@ -30,5 +30,6 @@ setup(
         'psycopg2',
         'gevent',
         'typing',
+        'torch==2.0.0',
     ],
 )
