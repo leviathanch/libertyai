@@ -154,7 +154,7 @@ def register_embedding(app):
             sem.acquire()
             output = embed_text(text)
             sem.release()
-            return {'embedding': output.tolist()}
+            return {'embedding': output[0].tolist()}
         else:
             return {'error': "Invalid API key"}
 
