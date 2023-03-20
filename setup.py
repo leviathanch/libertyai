@@ -28,6 +28,8 @@ setup(
         'flask',
         'flask-login',
         'flask-sqlalchemy',
+        'flask_migrate',
+        'flask_script',
         'langchain',
         'pgvector',
         'psycopg2',
@@ -35,5 +37,6 @@ setup(
         'typing',
         'torch==2.0.0',
         'SQLAlchemy==1.4.18',
+        'spacy',
     ],
 )

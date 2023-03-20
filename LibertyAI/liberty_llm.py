@@ -40,5 +40,8 @@ class LibertyLLM(LLM):
     @property
     def _identifying_params(self) -> Mapping[str, Any]:
         """Get the identifying parameters."""
-        return {"n": self.n}
+        return {
+            'max_new_tokens': self.max_tokens,
+            'temperature' : self.temperature,
+        }
 

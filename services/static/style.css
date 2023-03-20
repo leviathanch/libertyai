@@ -1,5 +1,14 @@
 body {
+  background-color: black;
+  color: white;
+  font-family: Garamond;
+}
+@media screen and (prefers-color-scheme: light) {
+  body {
+    background-color: white;
+    color: black;
     font-family: Garamond;
+  }
 }
 
 h1 {

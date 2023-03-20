@@ -15,15 +15,38 @@ from flask_login import (
     LoginManager,
 )
 
+from werkzeug.security import generate_password_hash
+
 from flask_sqlalchemy import SQLAlchemy
 
 from LibertyAI import LibertyChatBot
+from LibertyAI.liberty_config import get_configuration
+
+config = get_configuration()
+SQLALCHEMY_DATABASE_URI = 'postgresql://'
+SQLALCHEMY_DATABASE_URI += config.get('DATABASE', 'PGSQL_USER') + ':'
+SQLALCHEMY_DATABASE_URI += config.get('DATABASE', 'PGSQL_PASSWORD') + '@'
+SQLALCHEMY_DATABASE_URI += config.get('DATABASE', 'PGSQL_SERVER') + ':'
+SQLALCHEMY_DATABASE_URI += config.get('DATABASE', 'PGSQL_SERVER_PORT') + '/'
+SQLALCHEMY_DATABASE_URI += config.get('DATABASE', 'PGSQL_DATABASE')
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret-key-goes-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
+
 db = SQLAlchemy()
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    def __repr__(self):
+        return '<User %r>' % self.name
+
 db.init_app(app)
+#db.create_all()
+
 
 login_manager = LoginManager()
 login_manager.login_view = 'login'
@@ -48,7 +71,6 @@ def signup():
 
 @app.route('/signup', methods=['POST'])
 def signup_post():
-    '''
     # code to validate and add user to database goes here
     email = request.form.get('email')
     name = request.form.get('name')
@@ -64,7 +86,6 @@ def signup_post():
 
     # add the new user to the database
     db.session.add(new_user)
-    '''
     db.session.commit()
     return redirect(url_for('login'))
 
