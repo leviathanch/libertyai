@@ -38,7 +38,7 @@ def load_model(config):
         'model.layers.12': 0,
         'model.layers.13': 0,
         'model.layers.14': 0,
-        'model.layers.15': 1,
+        'model.layers.15': 0,
         'model.layers.16': 1,
         'model.layers.17': 1,
         'model.layers.18': 1,
