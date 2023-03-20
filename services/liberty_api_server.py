@@ -114,7 +114,7 @@ def register_model(app):
                 generated_text = llm(text, stop=stop_tokens)
             else:
                 generated_text = llm(text)
-
+            torch.cuda.empty_cache()
             sem.release()
             return {'generated_text': generated_text}
         else:
@@ -153,6 +153,7 @@ def register_embedding(app):
         if key == config.get('DEFAULT', 'API_KEY'):
             sem.acquire()
             output = embed_text(text)
+            torch.cuda.empty_cache()
             sem.release()
             return {'embedding': output[0].tolist()}
         else:
