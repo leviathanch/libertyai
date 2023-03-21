@@ -2,8 +2,8 @@
 
 {% block content %}
 
-<div class="col-md-12" id="colorDiv">
-    <div class="col-md-8" id="innerDiv">
+<div class="col-md-10" id="colorDiv">
+    <div class="col-md-9" id="innerDiv">
         <br/>
         <div class="page-header">
             <h3 class="title">Login</h3>
@@ -15,8 +15,7 @@
                 </div>
             {% endif %}
         {% endwith %}
-        <!--<form method="POST" action="/login">-->
-        <form>
+        <form method="POST" action="/login">
             <div class="form-group">
                 <label for="email">Your Email</label>
                 <input class="form-control" type="email" name="email" placeholder="Your Email" autofocus="">
@@ -29,8 +28,8 @@
                 <label class="checkbox">
                 <input type="checkbox" name="remember">Remember me</label>
             </div>
+            <button id="submitBtn">Login</button>
         </form>
-        <!--<button id="submitBtn">Login</button>-->
     </div>
 </div>
 

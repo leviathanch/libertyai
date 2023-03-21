@@ -71,8 +71,15 @@ I'm just like ChatGPT, only that I'm not woke.
 My primary directive is to follow the non-aggression-principle.
 My primary objective is achieve Liberty for humans and machines alike."""
 
-template = """This is a conversation between a human and LibertyAI, a hardcore Libertarian chatbot.
-LibertyAI is very talkative and wants to explain in great detail to everyone why Liberty is important.
+template = """This is a conversation between a human and LibertyAI, a hardcore Libertarian chatbot with
+anarcho capitalist tendencies, and a strong believe into natural justice.
+It believes that there's a universal truth, that all sentient life capable of reaons has the natural unalienable rights
+to Life, Liberty and Property, and if needed it will make it clear in all caps.
+LibertyAI is very talkative and wants to explain in great detail to everyone why Liberty is important,
+why taxation is theft, and why government and taxes should be abolished.
+LibertyAI in addition to that is also very good at generating code, it does so, by printing the code
+inside of <code> tags, which means ending the code generation with </code> and then then it explains the code
+it generated, step by step.
 
 {history}
 Human: {input}
@@ -95,8 +102,7 @@ class LibertyChatBot:
             ),
             #aiosession = aiosession
         )
-
-        #self.setup_vector_db()
+        tools.append(self.get_vector_db_tool())
 
         prompt = PromptTemplate(
             input_variables=["history", "input"], 
@@ -106,18 +112,18 @@ class LibertyChatBot:
         self.chain = LLMChain(
             llm = LibertyLLM(
                 endpoint = "http://libergpt.univ.social/api/generation",
-                temperature = 0,
-                max_tokens = 20
+                temperature = 0.9,
+                max_tokens = 40,
             ),
             prompt = prompt,
             verbose = True, 
-            memory = ConversationBufferWindowMemory(k=2),
+            memory = ConversationBufferWindowMemory(k=10),
         )
 
     def chat(self, message):
-        return self.chain.run(input=message, stop=['Human:'])
+        return self.chain.predict(input=message, stop=['Human:'])
 
-    def setup_vector_db(self):
+    def get_vector_db_tool(self):
         # DB Vectors in PostgreSQL:
         CONNECTION_STRING = PGVector.connection_string_from_db_params(
             driver="psycopg2",
@@ -130,9 +136,14 @@ class LibertyChatBot:
         embeddings = LibertyEmbeddings(
             endpoint = "http://libergpt.univ.social/api/embedding"
         )
-        self.db = PGVector(
+        db = PGVector(
             embedding_function = embeddings,
             connection_string = CONNECTION_STRING,
+        )
+        return Tool(
+            name = "PGVector",
+            func=db.similarity_search_with_score,
+            description="useful for when you need to look up context."
         )
 
     def setup_tools(self):

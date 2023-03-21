@@ -1,22 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
-  
-<h1>LibertyAI</h1>
-<div id="chatbox">
-<p class="botText"><span>LibertyAI:<br/>I'm LibertyAI.<br/>I'm just like ChatGPT, only that I'm not woke.</span></p>
+
+<div class="flex-1 overflow-hidden">
+    <div class="react-scroll-to-bottom--css-wsimo-79elbk h-full dark:bg-gray-800">
+        <div id="chatbox" class="flex flex-col items-center text-sm dark:bg-gray-800">
+            <p class="botText"><span>LibertyAI:<br/>I'm LibertyAI.<br/>I'm just like ChatGPT, only that I'm not woke.</span></p>
+        </div>
+    </div>
+    <div class="absolute bottom-0 left-0 w-full border-t md:border-t-0 dark:border-white/20 md:border-transparent md:dark:border-transparent md:bg-vert-light-gradient bg-white dark:bg-gray-800 dark:md:bg-vert-dark-gradient pt-2">
+        <div class="stretch mx-2 flex flex-row gap-3 last:mb-2 md:mx-4 md:last:mb-6 lg:mx-auto lg:max-w-3xl">
+            <div class="relative flex h-full flex-1 md:flex-col">
+                <div class="flex flex-col w-full py-2 flex-grow md:py-3 md:pl-4 relative border border-black/10 bg-white dark:border-gray-900/50 dark:text-white dark:bg-gray-700 rounded-md">
+                    <textarea id="textInput" rows="1" class="m-0 w-full resize-none border-0 bg-transparent p-0 pr-7 focus:ring-0 focus-visible:ring-0 dark:bg-transparent pl-2 md:pl-0"></textarea>
+                    <button id="buttonInput" class="absolute p-1 rounded-md text-gray-500 bottom-1.5 md:bottom-2.5 hover:bg-gray-100 dark:hover:text-gray-400 right-1 md:right-2">
+                        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 mr-1" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-<div id="userInput">
-<textarea id="textInput" type="text" name="msg" placeholder="Message" rows="10"></textarea>
-<input id="buttonInput" type="submit" value="Send">
-</div>
+
 <script>
 function getBotResponse() {
   var rawText = $("#textInput").val();
   var userHtml = '<p class="userText"><span>Human:<br/>' + rawText.split("\n").join("<br/>") + '</span></p>';
   $("#textInput").val("");
   $("#chatbox").append(userHtml);
-  document.getElementById('userInput').scrollIntoView({block: 'start', behavior: 'smooth'});
   var newp = document.createElement("p");
   newp.className = "botText blinkyBotText";
   var newsp = document.createElement("span")
@@ -26,11 +40,10 @@ function getBotResponse() {
   $.get("/chatbot/get", { msg: rawText }).done(function(data) {
     newsp.setHTML("LibertyAI:<br/>"+data.split("\n").join("<br/>"));
     newp.className = "botText";
-    document.getElementById('userInput').scrollIntoView({block: 'start', behavior: 'smooth'});
   });
 }
 $("#textInput").keypress(function(e) {
-    if(e.keyCode == 13 && e.shiftKey) {
+    if(e.keyCode == 13 && !e.shiftKey) {
         getBotResponse();
     }
 });

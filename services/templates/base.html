@@ -12,17 +12,23 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 
-<body class="text-center">
-    <div class="cover-container d-flex h-100 p-3 mx-auto flex-column">
+<body class="text-center w-100">
+    <div class="d-flex w-75 h-100 p-3 flex-column">
         <header class="masthead mb-auto">
             <div class="inner">
-                <h3 class="masthead-brand">Cover</h3>
+                <h3 class="masthead-brand">
+                    <img class="masthead-brand-logo" src="{{ url_for('static', filename='logo.png') }}"/>
+                </h3>
                 <nav class="nav nav-masthead justify-content-right">
-                    <a href="{{ url_for('index') }}" class="nav-link">Home</a>
-                    <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
-                    <a href="{{ url_for('login') }}" class="nav-link">Login</a>
-                    <a href="{{ url_for('signup') }}" class="nav-link">Sign Up</a>
-                    <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('chatbot') }}" class="nav-link">Chatbot</a>
+                        <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
+                        <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+                    {% else %}
+                        <a href="{{ url_for('index') }}" class="nav-link">Home</a>
+                        <a href="{{ url_for('login') }}" class="nav-link">Login</a>
+                        <a href="{{ url_for('signup') }}" class="nav-link">Sign Up</a>
+                    {% endif %}                    
                 </nav>
             </div>
         </header>
@@ -32,7 +38,7 @@
         </main>
         <footer class="mastfoot mt-auto">
         <div class="inner">
-          <p>Cover template for <a href="https://getbootstrap.com/">Bootstrap</a>, by <a href="https://twitter.com/mdo">@mdo</a>.</p>
+          <p>Give me Liberty or give me death - Patrick Henry, 1775</p>
         </div>
         </footer>
     </div>

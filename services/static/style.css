@@ -37,11 +37,6 @@ body {
   box-shadow: inset 0 0 5rem rgba(0, 0, 0, .5);
 }
 
-.cover-container {
-  max-width: 42em;
-}
-
-
 /*
  * Header
  */
@@ -50,7 +45,12 @@ body {
 }
 
 .masthead-brand {
+  width: 20%;
   margin-bottom: 0;
+}
+
+.masthead-brand-logo {
+  width: 100%;
 }
 
 .nav-masthead .nav-link {
@@ -104,10 +104,14 @@ body {
   color: rgba(255, 255, 255, .5);
 }
 
+/*
+ * Chatbot
+ */
+
 #chatbox {
     margin-left: auto;
     margin-right: auto;
-    width: 40%;
+    width: 100%;
     margin-top: 60px;
     font-family: Garamond;
 }
@@ -115,18 +119,17 @@ body {
 #userInput {
     margin-left: auto;
     margin-right: auto;
-    width: 40%;
+    width: 100%;
     margin-top: 60px;
     font-family: Garamond;
 }
 
 #textInput {
-    width: 87%;
-    border: none;
-    border-bottom: 3px solid #009688;
-    font-family: monospace;
-    font-size: 17px;
+    max-height: 200px;
+    height: 24px;
+    overflow-y: hidden;
     font-family: Garamond;
+    width: 90%;
 }
 
 #buttonInput {

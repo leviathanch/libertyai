@@ -15,8 +15,6 @@ def get_configuration():
     else:
         # General stuff for getting it to start up
         config.set('DEFAULT', 'APIServicePort', value='5001')
-        config.set('DEFAULT', 'LLMDir', value='/home/user/HF_LLaMA/llama-7b')
-        config.set('DEFAULT', 'TokenizerDir', value='/home/user/HF_LLaMA/tokenizer')
         config.set('DEFAULT', 'API_KEY', value=hashlib.sha256(os.urandom(32)).hexdigest())
         # Data base settings
         config.add_section('DATABASE')

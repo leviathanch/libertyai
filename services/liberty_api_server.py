@@ -24,9 +24,15 @@ def load_model(config):
     llama_model = LLaMAForCausalLM.from_pretrained(
         "decapoda-research/llama-7b-hf",
         load_in_8bit=True,
-        device_map="auto",
+        torch_dtype=torch.float16,
+        device_map={'':1},
     )
-    alpaca_model = PeftModel.from_pretrained(llama_model, "tloen/alpaca-lora-7b")
+    alpaca_model = PeftModel.from_pretrained(
+        llama_model,
+        "tloen/alpaca-lora-7b",
+        torch_dtype=torch.float16,
+        device_map={'':1},
+    )
     return llama_model, alpaca_model
 
 def register_model(app):
@@ -58,15 +64,33 @@ def register_model(app):
             stop_tokens = data['stop_tokens']
         except:
             stop_tokens = None
+        
+        try:
+            output_scores = data['output_scores']
+        except:
+            output_scores = True
+
+        try:
+            top_p = data['top_p']
+        except:
+            top_p = 0.75
+
+        try:
+            num_beams = data['num_beams']
+        except:
+            num_beams = 4
 
         if key == config.get('DEFAULT', 'API_KEY'):
             sem.acquire()
             pipe = pipeline(
                 "text-generation",
-                model=model,
-                tokenizer=tokenizer,
-                temperature=float(temp),
-                max_new_tokens=int(max_tokens),
+                model = alpaca_model,
+                tokenizer = tokenizer,
+                temperature = float(temp),
+                max_new_tokens = int(max_tokens),
+                output_scores = output_scores,
+                top_p = top_p,
+                num_beams = num_beams,
             )
             llm = HuggingFacePipeline(pipeline=pipe)
 
@@ -74,6 +98,7 @@ def register_model(app):
                 generated_text = llm(text, stop=stop_tokens)
             else:
                 generated_text = llm(text)
+
             torch.cuda.empty_cache()
             sem.release()
             return {'generated_text': generated_text}
@@ -89,6 +114,7 @@ def mean_pooling(model_output, attention_mask):
 def embed_text(text):
     # Tokenize sentences
     encoded_input = tokenizer([text], return_tensors='pt') #, padding=True, truncation=True
+    #encoded_input["input_ids"] = encoded_input["input_ids"].cuda()
     # Compute token embeddings
     with torch.no_grad():
         model_output = llama_model(**encoded_input)
