@@ -7,6 +7,7 @@ import threading
 import torch
 
 from transformers import LLaMATokenizer, LLaMAForCausalLM, pipeline
+from peft import PeftModel
 
 from LibertyAI import get_configuration
 
@@ -59,12 +60,20 @@ def load_model(config):
         'lm_head': 1
     }
 
+    #model = LLaMAForCausalLM.from_pretrained(
+    #    config.get('DEFAULT', 'LLMDir'),
+    #    device_map=dmap,
+    #    torch_dtype="auto",
+    #)
+    #model.eval()
+
     model = LLaMAForCausalLM.from_pretrained(
-        config.get('DEFAULT', 'LLMDir'),
-        device_map=dmap,
-        torch_dtype="auto",
+        "decapoda-research/llama-7b-hf",
+        load_in_8bit=True,
+        device_map="auto",
     )
-    model.eval()
+    model = PeftModel.from_pretrained(model, "tloen/alpaca-lora-7b")
+
     print("Done loading")
 
     return model
@@ -173,9 +182,10 @@ if __name__ == '__main__':
         config = get_configuration()
         sem = threading.Semaphore(10)
         app = Flask(__name__)
-        tokenizer = LLaMATokenizer.from_pretrained(
-            config.get('DEFAULT', 'TokenizerDir')
-        )
+        #tokenizer = LLaMATokenizer.from_pretrained(
+        #    config.get('DEFAULT', 'TokenizerDir')
+        #)
+        tokenizer = LLaMATokenizer.from_pretrained("decapoda-research/llama-7b-hf")
         model = load_model(config)
         
         if args.model:
