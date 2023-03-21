@@ -23,7 +23,7 @@ import argparse
 def load_model(config):
     llama_model = LLaMAForCausalLM.from_pretrained(
         "decapoda-research/llama-7b-hf",
-        #load_in_8bit=True,
+        load_in_8bit=True,
         device_map="auto",
     )
     alpaca_model = PeftModel.from_pretrained(llama_model, "tloen/alpaca-lora-7b")
