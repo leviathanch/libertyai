@@ -21,62 +21,13 @@ from sentence_transformers import SentenceTransformer, util
 import argparse
 
 def load_model(config):
-    print("Loading model...")
-    dmap = {
-        'model.embed_tokens': 1,
-        'model.layers.0': 0,
-        'model.layers.1': 0,
-        'model.layers.2': 0,
-        'model.layers.3': 0,
-        'model.layers.4': 0,
-        'model.layers.5': 0,
-        'model.layers.6': 0,
-        'model.layers.7': 0,
-        'model.layers.8': 0,
-        'model.layers.9': 0,
-        'model.layers.10': 0,
-        'model.layers.11': 0,
-        'model.layers.12': 0,
-        'model.layers.13': 0,
-        'model.layers.14': 0,
-        'model.layers.15': 0,
-        'model.layers.16': 1,
-        'model.layers.17': 1,
-        'model.layers.18': 1,
-        'model.layers.19': 1,
-        'model.layers.20': 1,
-        'model.layers.21': 1,
-        'model.layers.22': 1,
-        'model.layers.23': 1,
-        'model.layers.24': 1,
-        'model.layers.25': 1,
-        'model.layers.26': 1,
-        'model.layers.27': 1,
-        'model.layers.28': 1,
-        'model.layers.29': 1,
-        'model.layers.30': 1,
-        'model.layers.31': 1,
-        'model.norm': 1,
-        'lm_head': 1
-    }
-
-    #model = LLaMAForCausalLM.from_pretrained(
-    #    config.get('DEFAULT', 'LLMDir'),
-    #    device_map=dmap,
-    #    torch_dtype="auto",
-    #)
-    #model.eval()
-
-    model = LLaMAForCausalLM.from_pretrained(
+    llama_model = LLaMAForCausalLM.from_pretrained(
         "decapoda-research/llama-7b-hf",
         load_in_8bit=True,
         device_map="auto",
     )
-    model = PeftModel.from_pretrained(model, "tloen/alpaca-lora-7b")
-
-    print("Done loading")
-
-    return model
+    alpaca_model = PeftModel.from_pretrained(llama_model, "tloen/alpaca-lora-7b")
+    return llama_model, alpaca_model
 
 def register_model(app):
     @app.route('/api/generation', methods=['POST'])
@@ -140,7 +91,7 @@ def embed_text(text):
     encoded_input = tokenizer([text], return_tensors='pt') #, padding=True, truncation=True
     # Compute token embeddings
     with torch.no_grad():
-        model_output = model(**encoded_input)
+        model_output = llama_model(**encoded_input)
     # Perform pooling. In this case, max pooling.
     sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
     return sentence_embeddings
@@ -182,12 +133,8 @@ if __name__ == '__main__':
         config = get_configuration()
         sem = threading.Semaphore(10)
         app = Flask(__name__)
-        #tokenizer = LLaMATokenizer.from_pretrained(
-        #    config.get('DEFAULT', 'TokenizerDir')
-        #)
         tokenizer = LLaMATokenizer.from_pretrained("decapoda-research/llama-7b-hf")
-        model = load_model(config)
-        
+        llama_model, alpaca_model = load_model(config)
         if args.model:
             register_model(app)
         if args.embeddings:
