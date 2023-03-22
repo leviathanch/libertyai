@@ -12,35 +12,37 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 
-<body class="text-center w-100">
-    <div class="d-flex w-75 h-100 p-3 flex-column">
-        <header class="masthead mb-auto">
-            <div class="inner">
-                <h3 class="masthead-brand">
-                    <img class="masthead-brand-logo" src="{{ url_for('static', filename='logo.png') }}"/>
-                </h3>
-                <nav class="nav nav-masthead justify-content-right">
-                    {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('chatbot') }}" class="nav-link">Chatbot</a>
-                        <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
-                        <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
-                    {% else %}
-                        <a href="{{ url_for('index') }}" class="nav-link">Home</a>
-                        <a href="{{ url_for('login') }}" class="nav-link">Login</a>
-                        <a href="{{ url_for('signup') }}" class="nav-link">Sign Up</a>
-                    {% endif %}                    
-                </nav>
-            </div>
-        </header>
-        <main role="main" class="inner cover">
-           {% block content %}
-           {% endblock %}
-        </main>
-        <footer class="mastfoot mt-auto">
-        <div class="inner">
-          <p>Give me Liberty or give me death - Patrick Henry, 1775</p>
+<body>
+    <div class="overflow-hidden w-full h-full relative">
+        <div class="flex h-full flex-1 flex-col md:pl-[260px]">
+            <header class="relative h-full w-full transition-width flex flex-col overflow-hidden items-stretch flex-1">
+                <div class="inner">
+                    <h3 class="masthead-brand">
+                        <img class="masthead-brand-logo" src="{{ url_for('static', filename='logo.png') }}"/>
+                    </h3>
+                    <nav class="nav nav-masthead justify-content-right">
+                        {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('chatbot') }}" class="nav-link">Chatbot</a>
+                            <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
+                            <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+                        {% else %}
+                            <a href="{{ url_for('index') }}" class="nav-link">Home</a>
+                            <a href="{{ url_for('login') }}" class="nav-link">Login</a>
+                            <a href="{{ url_for('signup') }}" class="nav-link">Sign Up</a>
+                        {% endif %}                    
+                    </nav>
+                </div>
+            </header>
+            <main class="relative h-full w-full transition-width flex flex-col overflow-hidden items-stretch flex-1">
+               {% block content %}
+               {% endblock %}
+            </main>
+            <footer class="relative h-full w-full transition-width flex flex-col overflow-hidden items-stretch flex-1">
+                <div class="inner">
+                  <p>Give me Liberty or give me death - Patrick Henry, 1775</p>
+                </div>
+            </footer>
         </div>
-        </footer>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
 </body>

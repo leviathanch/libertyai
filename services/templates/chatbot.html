@@ -8,6 +8,7 @@
             <p class="botText"><span>LibertyAI:<br/>I'm LibertyAI.<br/>I'm just like ChatGPT, only that I'm not woke.</span></p>
         </div>
     </div>
+
     <div class="absolute bottom-0 left-0 w-full border-t md:border-t-0 dark:border-white/20 md:border-transparent md:dark:border-transparent md:bg-vert-light-gradient bg-white dark:bg-gray-800 dark:md:bg-vert-dark-gradient pt-2">
         <div class="stretch mx-2 flex flex-row gap-3 last:mb-2 md:mx-4 md:last:mb-6 lg:mx-auto lg:max-w-3xl">
             <div class="relative flex h-full flex-1 md:flex-col">
@@ -27,29 +28,41 @@
 
 <script>
 function getBotResponse() {
-  var rawText = $("#textInput").val();
-  var userHtml = '<p class="userText"><span>Human:<br/>' + rawText.split("\n").join("<br/>") + '</span></p>';
-  $("#textInput").val("");
-  $("#chatbox").append(userHtml);
-  var newp = document.createElement("p");
-  newp.className = "botText blinkyBotText";
-  var newsp = document.createElement("span")
-  newsp.setHTML("LibertyAI:");
-  newp.append(newsp);
-  $("#chatbox").append(newp);
-  $.get("/chatbot/get", { msg: rawText }).done(function(data) {
-    newsp.setHTML("LibertyAI:<br/>"+data.split("\n").join("<br/>"));
-    newp.className = "botText";
-  });
+    var rawText = $("#textInput").val();
+    var userHtml = '<p class="userText"><span>Human:<br/>' + rawText.split("\n").join("<br/>") + '</span></p>';
+    $("#chatbox").append(userHtml);
+    $("#textInput").val("")
+    var newp = document.createElement("p");
+    newp.className = "botText blinkyBotText";
+    var newsp = document.createElement("span")
+    newsp.setHTML("LibertyAI:");
+    newp.append(newsp);
+    $("#chatbox").append(newp);
+    $.get("/chatbot/get", { msg: rawText }).done(function(data) {
+        newsp.setHTML("LibertyAI:<br/>"+data.split("\n").join("<br/>"));
+        newp.className = "botText";
+    });
 }
-$("#textInput").keypress(function(e) {
-    if(e.keyCode == 13 && !e.shiftKey) {
-        getBotResponse();
+
+document.getElementById('textInput').addEventListener('keydown', function (e) {
+    const keyCode = e.which || e.keyCode;
+    if (keyCode === 13 && !e.shiftKey) {
+        e.preventDefault();
+        getBotResponse(this);
+        this.style.height = 0;
+        this.style.height = (this.scrollHeight) + "px";
     }
 });
+
+document.getElementById('textInput').addEventListener('input', function () {
+    this.style.height = 0;
+    this.style.height = (this.scrollHeight) + "px";
+});
+
 $("#buttonInput").click(function() {
-  getBotResponse();
+      getBotResponse();
 })
+
 </script>
 
 
