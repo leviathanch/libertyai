@@ -21,6 +21,20 @@
 
 <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
 <script>
+
+var i = 0;
+var txt = 'Lorem ipsum dummy text blabla.';
+var speed = 100;
+var typewriterp = document.createElement("p");;
+
+function typeWriter() {
+  if (i < txt.length) {
+    typewriterp.innerHTML += txt.charAt(i);
+    i++;
+    setTimeout(typeWriter, speed);
+  }
+}
+
 function getBotResponse() {
     var rawText = $("#textInput").val();
     var newField = getChatDiv(
@@ -36,18 +50,16 @@ function getBotResponse() {
     );
     $("#chatbox").append(newField);
     $("#textInput").val("");
-    /*var newp = document.createElement("p");
-    newp.className = "botText blinkyBotText";
-    var newsp = document.createElement("span");
-    newsp.setHTML("LibertyAI:");
-    newp.append(newsp);*/
     $("#chatbox").append(newChatBotField);
-    /*$("#chatbox").append(newp); */
+    var newp = document.createElement("p");
+    newp.classList.add("blinkyBotText");
+    chatBotWorkObject.append(newp);
     $.get("/chatbot/get", { msg: rawText }).done(function(data) {
-        var newp = document.createElement("p");
-        newp.setHTML(data)
-        chatBotWorkObject.append(newp);
-        /* newp.className = "botText"; */
+        txt = data;
+        i = 0;
+        typewriterp = newp;
+        typeWriter()
+        newp.classList.remove("blinkyBotText");
     });
 }
 
@@ -71,6 +83,5 @@ $("#buttonInput").click(function() {
 })
 
 </script>
-
 
 {% endblock %}
