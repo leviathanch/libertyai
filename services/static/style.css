@@ -124,13 +124,6 @@ body {
     font-family: Garamond;
 }
 
-#textInput {
-    overflow-y: hidden;
-    font-family: Garamond;
-    width: 90%;
-    height: 24px;
-}
-
 #buttonInput {
     padding: 3px;
     font-family: monospace;
@@ -183,6 +176,16 @@ body {
     align-items: center;
     gap: 2px;
     font-family: Garamond;
+}
+
+.react-scroll-to-bottom-1 {
+    position: relative;
+}
+
+.react-scroll-to-bottom-2 {
+    height: 100%;
+    overflow-y: auto;
+    width: 100%;
 }
 
 @keyframes cursor-blink {
