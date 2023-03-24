@@ -1,4 +1,5 @@
 from typing import Any
+import gc
 
 from flask import Flask, request
 from gevent.pywsgi import WSGIServer
@@ -21,19 +22,50 @@ from sentence_transformers import SentenceTransformer, util
 import argparse
 
 def load_model(config):
-    llama_model = LLaMAForCausalLM.from_pretrained(
-        "decapoda-research/llama-7b-hf",
-        load_in_8bit=True,
+    dmap = {
+        'model.embed_tokens': 1,
+        'model.layers.0': 0,
+        'model.layers.1': 0,
+        'model.layers.2': 0,
+        'model.layers.3': 0,
+        'model.layers.4': 0,
+        'model.layers.5': 0,
+        'model.layers.6': 0,
+        'model.layers.7': 0,
+        'model.layers.8': 0,
+        'model.layers.9': 0,
+        'model.layers.10': 0,
+        'model.layers.11': 0,
+        'model.layers.12': 0,
+        'model.layers.13': 0,
+        'model.layers.14': 0,
+        'model.layers.15': 0,
+        'model.layers.16': 1,
+        'model.layers.17': 1,
+        'model.layers.18': 1,
+        'model.layers.19': 1,
+        'model.layers.20': 1,
+        'model.layers.21': 1,
+        'model.layers.22': 1,
+        'model.layers.23': 1,
+        'model.layers.24': 1,
+        'model.layers.25': 1,
+        'model.layers.26': 1,
+        'model.layers.27': 1,
+        'model.layers.28': 1,
+        'model.layers.29': 1,
+        'model.layers.30': 1,
+        'model.layers.31': 1,
+        'model.norm': 1,
+        'lm_head': 1}
+
+    model = LLaMAForCausalLM.from_pretrained(
+        "chavinlo/alpaca-native",
         torch_dtype=torch.float16,
-        device_map={'':1},
+        device_map = dmap,
     )
-    alpaca_model = PeftModel.from_pretrained(
-        llama_model,
-        "tloen/alpaca-lora-7b",
-        torch_dtype=torch.float16,
-        device_map={'':1},
-    )
-    return llama_model, alpaca_model
+
+    return model
 
 def register_model(app):
     @app.route('/api/generation', methods=['POST'])
@@ -84,7 +116,7 @@ def register_model(app):
             sem.acquire()
             pipe = pipeline(
                 "text-generation",
-                model = alpaca_model,
+                model = model,
                 tokenizer = tokenizer,
                 temperature = float(temp),
                 max_new_tokens = int(max_tokens),
@@ -100,6 +132,7 @@ def register_model(app):
                 generated_text = llm(text)
 
             torch.cuda.empty_cache()
+            gc.collect()
             sem.release()
             return {'generated_text': generated_text}
         else:
@@ -112,13 +145,9 @@ def mean_pooling(model_output, attention_mask):
     return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
 def embed_text(text):
-    # Tokenize sentences
-    encoded_input = tokenizer([text], return_tensors='pt') #, padding=True, truncation=True
-    #encoded_input["input_ids"] = encoded_input["input_ids"].cuda()
-    # Compute token embeddings
+    encoded_input = tokenizer([text], return_tensors='pt')
     with torch.no_grad():
-        model_output = llama_model(**encoded_input)
-    # Perform pooling. In this case, max pooling.
+        model_output = model(**encoded_input)
     sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
     return sentence_embeddings
 
@@ -140,6 +169,7 @@ def register_embedding(app):
             sem.acquire()
             output = embed_text(text)
             torch.cuda.empty_cache()
+            gc.collect()
             sem.release()
             return {'embedding': output[0].tolist()}
         else:
@@ -160,7 +190,7 @@ if __name__ == '__main__':
         sem = threading.Semaphore(10)
         app = Flask(__name__)
         tokenizer = LLaMATokenizer.from_pretrained("decapoda-research/llama-7b-hf")
-        llama_model, alpaca_model = load_model(config)
+        model = load_model(config)
         if args.model:
             register_model(app)
         if args.embeddings:
