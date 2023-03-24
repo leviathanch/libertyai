@@ -126,13 +126,14 @@ def register_model(app):
             )
             llm = HuggingFacePipeline(pipeline=pipe)
 
+            gc.collect()
             if stop_tokens:
                 generated_text = llm(text, stop=stop_tokens)
             else:
                 generated_text = llm(text)
 
-            torch.cuda.empty_cache()
             gc.collect()
+            torch.cuda.empty_cache()
             sem.release()
             return {'generated_text': generated_text}
         else:
@@ -167,9 +168,10 @@ def register_embedding(app):
 
         if key == config.get('DEFAULT', 'API_KEY'):
             sem.acquire()
-            output = embed_text(text)
-            torch.cuda.empty_cache()
             gc.collect()
+            output = embed_text(text)
+            gc.collect()
+            torch.cuda.empty_cache()
             sem.release()
             return {'embedding': output[0].tolist()}
         else:
@@ -191,6 +193,8 @@ if __name__ == '__main__':
         app = Flask(__name__)
         tokenizer = LLaMATokenizer.from_pretrained("decapoda-research/llama-7b-hf")
         model = load_model(config)
+        gc.freeze()
+        gc.enable()
         if args.model:
             register_model(app)
         if args.embeddings:
