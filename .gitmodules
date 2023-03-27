@@ -1,0 +1,3 @@
+[submodule "services/static/typeit"]
+	path = services/static/typeit
+	url = https://github.com/alexmacarthur/typeit.git
