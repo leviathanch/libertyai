@@ -1,3 +1,10 @@
+import mimetypes
+import os
+
+mimetypes.add_type('application/javascript', '.js')
+mimetypes.add_type('application/javascript', '.ts')
+mimetypes.add_type('text/css', '.css')
+
 from gevent.pywsgi import WSGIServer
 
 from flask import (
@@ -8,6 +15,7 @@ from flask import (
     redirect,
     url_for,
     flash,
+    send_from_directory,
 )
 
 from flask_login import (
@@ -25,7 +33,7 @@ from werkzeug.security import (
 
 from flask_sqlalchemy import SQLAlchemy
 
-from LibertyAI import LibertyChatBot
+from LibertyAI import initialize_agent
 from LibertyAI.liberty_config import get_configuration
 
 config = get_configuration()
@@ -89,7 +97,7 @@ def login_post():
     if user and check_password_hash(user.password, password.strip()):
         # if the above check passes, then we know the user has the right credentials
         login_user(user, remember=remember)
-        active_bots[user.id] = LibertyChatBot()
+        active_bots[user.id] = initialize_agent()
         return redirect(url_for('chatbot'))
     else:
         flash('Please check your login details and try again.')
@@ -149,36 +157,49 @@ def chatbot():
 
 # ------------------------
 
+@app.route("/chatbot/start_generation")
+@login_required
+def chatbot_start_generation():
+    try:
+        message = request.args.get('msg')
+    except:
+        return ""
+
+    if current_user.id not in active_bots:
+        active_bots[current_user.id] = initialize_agent()
+
+    msghash = active_bots[current_user.id].start_generations(message)
+
+    return msghash
+
+@app.route("/chatbot/get_part")
+@login_required
+def chatbot_get_part():
+    try:
+        msghash = request.args.get('id')
+    except:
+        return "[[DONE]]"
+
+    if current_user.id not in active_bots:
+        return "[[DONE]]"
+
+    next_paragraph = active_bots[current_user.id].get_paragraph(msghash)
+    if next_paragraph.strip() == "":
+        return "[[DONE]]"
+
+    return next_paragraph
+
 @app.route("/chatbot/get")
 @login_required
 def get_bot_response():
     message = request.args.get('msg')
-    #docs_with_score: List[Tuple[Document, float]] = db.similarity_search_with_score(message)
-    #docs_with_score = sorted(docs_with_score, key=lambda x: x[1], reverse=True)
-    #reply = docs_with_score[0][0].page_content
-    #result = bot.chat(message)
-    #reply = result["answer"]
     if current_user.id not in active_bots:
-        active_bots[current_user.id] = LibertyChatBot()
-
-    reply = active_bots[current_user.id].chat(message)
-
-    #reply = conversation.run(input=message, context="", stop=['Human:'])
-
+        active_bots[current_user.id] = initialize_agent()
+    #reply = active_bots[current_user.id].chat(message)
     return reply
 
 
 if __name__ == "__main__":
     active_bots = {}
+    active_conversations = {}
     app.run(host='0.0.0.0', port=5000)
-    #http_server = WSGIServer(('', int(config.get('DEFAULT', 'ModelServicePort'))), app)
-    #http_server.serve_forever()
-
-'''
-    for doc, score in docs_with_score:
-        print("-" * 80)
-        print("Score: ", score)
-        print(doc.page_content)
-        print("-" * 80)
-'''
-

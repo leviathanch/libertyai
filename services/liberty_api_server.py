@@ -7,7 +7,13 @@ from gevent.pywsgi import WSGIServer
 import threading
 import torch
 
-from transformers import LLaMATokenizer, LLaMAForCausalLM, pipeline
+from transformers import (
+    LLaMATokenizer,
+    LLaMAForCausalLM,
+    pipeline,
+    BitsAndBytesConfig,
+)
+
 from peft import PeftModel
 
 from LibertyAI import get_configuration
@@ -22,6 +28,13 @@ from sentence_transformers import SentenceTransformer, util
 import argparse
 
 def load_model(config):
+    quantization_config = BitsAndBytesConfig(
+        load_in_8bit = True,
+        #load_in_8bit = False,
+        llm_int8_enable_fp32_cpu_offload = True,
+        llm_int8_skip_modules=["lm_head","model.embed_tokens","model.norm"]
+    )
+
     dmap = {
         'model.embed_tokens': 1,
         'model.layers.0': 0,
@@ -57,13 +70,21 @@ def load_model(config):
         'model.layers.30': 1,
         'model.layers.31': 1,
         'model.norm': 1,
-        'lm_head': 1}
+        'lm_head': 1
+    }
+
+    model_kwargs={
+        "device_map": dmap,
+        "quantization_config": quantization_config
+    }
 
     model = LLaMAForCausalLM.from_pretrained(
         "chavinlo/alpaca-native",
         torch_dtype=torch.float16,
-        device_map = dmap,
+        **model_kwargs
     )
+
+    model.eval()
 
     return model
 
@@ -124,13 +145,15 @@ def register_model(app):
                 top_p = top_p,
                 num_beams = num_beams,
             )
+
             llm = HuggingFacePipeline(pipeline=pipe)
 
             gc.collect()
-            if stop_tokens:
-                generated_text = llm(text, stop=stop_tokens)
-            else:
-                generated_text = llm(text)
+            with torch.no_grad():
+                if stop_tokens:
+                    generated_text = llm(text, stop=stop_tokens)
+                else:
+                    generated_text = llm(text)
 
             gc.collect()
             torch.cuda.empty_cache()

@@ -1,14 +1,19 @@
-function getChatTextDiv(text) {
+function getChatWorkObject() {
+    var div = document.createElement("div");
+    div.className = "min-h-[20px] flex flex-col items-start gap-4 whitespace-pre-wrap";
+    return div
+    
+}
+
+function getChatTextDiv(workDiv) {
     var div0 = document.createElement("div");
     var div1 = document.createElement("div");
     var div2 = document.createElement("div");
     var div3 = document.createElement("div");
     div0.className = "relative flex w-[calc(100%-50px)] flex-col gap-1 md:gap-3 lg:w-[calc(100%-115px)]";
     div1.className = "flex flex-grow flex-col gap-3";
-    div2.className = "min-h-[20px] flex flex-col items-start gap-4 whitespace-pre-wrap"
-    div3.className = "flex justify-between"
-    div2.append(text)
-    div1.append(div2)
+    div3.className = "flex justify-between";
+    div1.append(workDiv)
     div0.append(div1)
     div0.append(div3)
     return div0
@@ -40,3 +45,73 @@ function getChatDiv(text, color, avatar) {
     top.append(div1)
     return top
 }
+
+var queue = [];
+function addToTypeWriterQueue(data) {
+    queue.push(data);
+    queue = queue.sort((a,b) => a.count < b.count);
+}
+
+var currentWorkObject;
+
+function setCurrentWorkObject(o) {
+    currentWorkObject = o;
+}
+
+function typeWriter(o, i, data, resolve, reject) {
+    if (i < data.text.length) {
+        o.innerHTML += data.text.charAt(i);
+        if(o.innerHTML.search("[[DONE]]")!=-1) {
+            o.innerHTML = o.innerHTML.replace("[[DONE]]","");
+        } else {
+            setTimeout(typeWriter, 100, o, i+1, data);
+        }
+    }
+};
+
+
+function startTypeWriterJob() {
+    var busy = false;
+
+    const typeWriterPromise = (o, i, data) => {
+        return new Promise( (resolve, reject) => {
+            if (i < data.text.length) {
+                o.innerHTML += data.text.charAt(i);
+                if(o.innerHTML.search("[[DONE]]")!=-1) {
+                    o.innerHTML = o.innerHTML.replace("[[DONE]]","");
+                }
+            }
+            setTimeout(resolve, 50);
+        }).then(function () {
+            if (i < data.text.length) {
+                setTimeout(typeWriterPromise, 100, o, i+1, data);
+            }
+        })
+    }
+
+    const recursiveTypeWriterJob = () => {
+        return new Promise( (resolve, reject) => {
+            if (busy) {
+                resolve();
+                return 0;
+            }
+            if ( queue.length > 0 && currentWorkObject ) {
+                busy = true;
+                data = queue.shift();
+                console.log(data.text);
+                typeWriterPromise(currentWorkObject, 0, data).then(function () {
+                    busy = false;
+                    setTimeout(resolve, 500);
+                });
+            }
+            setTimeout(resolve, 500);
+        }).then(function () {
+            setTimeout(recursiveTypeWriterJob, 500);
+        })
+    }
+    recursiveTypeWriterJob();
+};
+
+
+
+
