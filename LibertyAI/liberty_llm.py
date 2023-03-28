@@ -33,9 +33,12 @@ class LibertyLLM(LLM):
             self.endpoint,
             json = json_data,
         )
-        reply = response.json()
-
-        return reply['generated_text'].strip()
+        try:
+            reply = response.json()
+            return reply['generated_text'].strip()
+        except:
+            print(response)
+            return ""
 
     @property
     def _identifying_params(self) -> Mapping[str, Any]:

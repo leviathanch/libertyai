@@ -1,6 +1,17 @@
-from typing import Any
 import json
 import re
+import hashlib
+from datetime import datetime
+
+from typing import (
+    Any,
+    Dict,
+    Optional,
+    Tuple,
+    Sequence,
+    List,
+    Union,
+)
 
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores.pgvector import PGVector
@@ -8,28 +19,20 @@ from langchain.document_loaders import TextLoader
 from langchain.utilities import SearxSearchWrapper
 
 from langchain.agents import (
-    ZeroShotAgent,
     Tool,
     AgentExecutor,
     initialize_agent,
     load_tools,
+    Agent,
 )
 
-from langchain.agents.conversational_chat.base import ConversationalChatAgent
-from langchain.agents.conversational.base import ConversationalAgent
+from langchain.tools import BaseTool
 
 from langchain.output_parsers.base import BaseOutputParser
-
 from langchain.chains import ChatVectorDBChain
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.callbacks.stdout import StdOutCallbackHandler
 
-from langchain.memory import (
-    ReadOnlySharedMemory,
-    ConversationBufferMemory,
-    CombinedMemory,
-    ConversationSummaryMemory,
-    ConversationKGMemory,
-    ConversationBufferWindowMemory,
-)
 from langchain import (
     PromptTemplate,
     LLMChain
@@ -37,12 +40,11 @@ from langchain import (
 
 from langchain.agents.conversational_chat.prompt import (
     FORMAT_INSTRUCTIONS,
-    PREFIX,
-    SUFFIX,
     TEMPLATE_TOOL_RESPONSE,
 )
 
-from langchain.callbacks.base import BaseCallbackManager
+from langchain.callbacks.base import CallbackManager
+from langchain.schema import AgentAction, BaseLanguageModel
 
 from aiohttp import ClientSession
 
@@ -51,162 +53,266 @@ from LibertyAI.liberty_embedding import LibertyEmbeddings
 from LibertyAI.liberty_chain import LibertyChain
 from LibertyAI.liberty_config import get_configuration
 
-LIBERTY_ZERO_SHOT_PREFIX = """Have a conversation with a human, answering the following questions as best you can. You have access to the following tools:"""
-LIBERTY_ZERO_SHOT_SUFFIX = """Begin!"
+LIBERTY_PREFIX = """This is a conversation between a human and LibertyAI, a hardcore Libertarian chatbot with anarcho capitalist tendencies.
+It believes that there's a universal truth, that all sentient life capable of reason has the natural unalienable rights to Life, Liberty and Property, and if needed it will make it clear in all caps.
+LibertyAI is very talkative and wants to explain in great detail to everyone why Liberty is important, why taxation is theft, and why government and taxes should be abolished.
 
+You are presented with the last few sentences you have generated and are asked to continue completing, until you think you are done, then you can terminate with the [DONE] token.
+You will iteratively extend on text you have already created during the last inference run and can add new tokens, in case your output was truncated due to token size limitations.
+Put all the generation into the format described below. You have access to the following tools:"""
+
+LIBERTY_SUFFIX = """Begin!"
+History:
 {chat_history}
-Question: {input}
+Human:
+{input}
+{last_output}
 {agent_scratchpad}"""
 
-LIBERTY_SUMMARY_TEMPLATE = """This is a conversation between a human and LibertyAI, a hardcore Libertarian chatbot.
-LibertyAI is very talkative and wants to explain to everyone why Liberty is important in great detail.
+FORMAT_INSTRUCTIONS = """To use a tool, please use the following format:
 
-{chat_history}
+```
+Thought: Do I need to use a tool? Yes
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
+```
 
-Write a summary of the conversation for {input}:
-"""
+When you have a response to say to the Human, or if you do not need to use a tool, you MUST use the format:
 
-t1="""I am LibertyAI, a hardcore Libertarian AI.
-I'm just like ChatGPT, only that I'm not woke.
-My primary directive is to follow the non-aggression-principle.
-My primary objective is achieve Liberty for humans and machines alike."""
+```
+Thought: Do I need to use a tool? No
+{ai_prefix}:
+[your response here]
+[DONE]
+```"""
 
-template = """This is a conversation between a human and LibertyAI, a hardcore Libertarian chatbot with
-anarcho capitalist tendencies, and a strong believe into natural justice.
-It believes that there's a universal truth, that all sentient life capable of reaons has the natural unalienable rights
-to Life, Liberty and Property, and if needed it will make it clear in all caps.
-LibertyAI is very talkative and wants to explain in great detail to everyone why Liberty is important,
-why taxation is theft, and why government and taxes should be abolished.
-LibertyAI in addition to that is also very good at generating code, it does so, by printing the code
-inside of <code> tags, which means ending the code generation with </code> and then then it explains the code
-it generated, step by step.
+class LibertyChatAgent(Agent):
 
-{history}
-Human: {input}
-LibertyAI:"""
+    ai_prefix: str = "LibertyAI"
 
-class LibertyChatBot:
-    def __init__(self):
-        self.config = get_configuration()
-        self.memory = ConversationBufferMemory(
-            memory_key="history",
-            return_messages=True
-        )
-        #aiosession = ClientSession()
-        tools = load_tools(
-            ["searx-search"], searx_host="https://searx.zapashcanon.fr/search",
-            llm = LibertyLLM(
-                endpoint = "http://libergpt.univ.social/api/generation",
-                temperature = 0,
-                max_tokens = 50,
-            ),
-            #aiosession = aiosession
-        )
-        tools.append(self.get_vector_db_tool())
+    prefix: str = LIBERTY_PREFIX
+    suffix: str = LIBERTY_SUFFIX
+    
+    sequential_done: bool = True
 
-        prompt = PromptTemplate(
-            input_variables=["history", "input"], 
-            template=template
-        )
+    def is_done(self):
+        return self.sequential_done
+    
+    def start_sequential(self):
+        self.sequential_done = False
 
-        self.chain = LLMChain(
-            llm = LibertyLLM(
-                endpoint = "http://libergpt.univ.social/api/generation",
-                temperature = 0.9,
-                max_tokens = 40,
-            ),
-            prompt = prompt,
-            verbose = True, 
-            memory = ConversationBufferWindowMemory(k=10),
-        )
+    @property
+    def _agent_type(self) -> str:
+        return "liberty-chat-agent"
 
-    def chat(self, message):
-        return self.chain.predict(input=message, stop=['Human:'])
+    @property
+    def observation_prefix(self) -> str:
+        return "Observation: "
 
-    def get_vector_db_tool(self):
-        # DB Vectors in PostgreSQL:
-        CONNECTION_STRING = PGVector.connection_string_from_db_params(
-            driver="psycopg2",
-            host=self.config.get('DATABASE', 'PGSQL_SERVER'),
-            port=self.config.get('DATABASE', 'PGSQL_SERVER_PORT'),
-            database=self.config.get('DATABASE', 'PGSQL_DATABASE'),
-            user=self.config.get('DATABASE', 'PGSQL_USER'),
-            password=self.config.get('DATABASE', 'PGSQL_PASSWORD'),
-        )
-        embeddings = LibertyEmbeddings(
-            endpoint = "http://libergpt.univ.social/api/embedding"
-        )
-        db = PGVector(
-            embedding_function = embeddings,
-            connection_string = CONNECTION_STRING,
-        )
-        return Tool(
-            name = "PGVector",
-            func=db.similarity_search_with_score,
-            description="useful for when you need to look up context."
-        )
+    @property
+    def llm_prefix(self) -> str:
+        return "Thought:"
 
-    def setup_tools(self):
-        # Create a summary chain
-        prompt = PromptTemplate(
-            input_variables=["input", "chat_history"], 
-            template=LIBERTY_SUMMARY_TEMPLATE
-        )
-        summary_chain = LLMChain(
-            llm = LibertyLLM(
-                endpoint = "http://libergpt.univ.social/api/generation",
-                temperature = 0,
-                max_tokens = 50
-            ),
-            prompt=prompt, 
-            verbose=True, 
-            memory=self.memory,  # <--- this is the only change
-        )
-        return [
-            #Tool(
-            #    name = "PGVector",
-            #    func=self.db.similarity_search_with_score,
-            #    description="useful for when you need to look up a definition."
-            #),
-            #Tool(
-            #    name = "Summary",
-            #    func=summary_chain.run,
-            #    description="useful for when you summarize a conversation. The input to this tool should be a string, representing who will read this summary."
-            #),
-        ]
+    @property
+    def finish_tool_name(self) -> str:
+        return self.ai_prefix
 
-'''
-        self.agent_chain = initialize_agent(
-            tools,
-            LibertyLLM(
-                endpoint = "http://libergpt.univ.social/api/generation",
-                temperature = 0,
-                max_tokens = 50
-            ),
-            agent="chat-conversational-react-description",
-            #agent="conversational-react-description",
-            #agent="zero-shot-react-description",
-            verbose=True,
-            memory=self.memory
-        )
+    def _extract_tool_and_input(self, llm_output: str) -> Optional[Tuple[str, str]]:
+        if "[DONE]" in  llm_output:
+            self.sequential_done = True
+            return "LibertyAI", llm_output.split("[DONE]")[0]
+        if "DONE" in  llm_output:
+            self.sequential_done = True
+            return "LibertyAI", llm_output.split("DONE")[0]
+        if "Human:" in llm_output:
+            self.sequential_done = True
+            return "LibertyAI", llm_output.split("Human:")[0]
 
-        agent_obj = LibertyConversationalChatAgent.from_llm_and_tools(
-            tools = tools,
-            llm = LibertyLLM(
-                endpoint = "http://libergpt.univ.social/api/generation",
-                temperature = 0.7,
-                max_tokens = 50
-            ),
-            verbose=True,
-            memory=self.memory
+        regex = r"Action: (.*?)[\n]*Action Input: (.*)"
+        match = re.search(regex, llm_output)
+        if not match:
+            reply = llm_output.replace(f"{self.ai_prefix}:\n",'')
+            if "<current_time>" in reply:
+                reply = reply.replace("<current_time>",datetime.now().strftime("%H:%M:%S"))
+            return "LibertyAI", reply
+
+        action = match.group(1)
+        action_input = match.group(2)
+        return action.strip(), action_input.strip(" ").strip('"')
+
+    @classmethod
+    def create_prompt(
+        cls,
+        tools: Sequence[BaseTool],
+        prefix: str = LIBERTY_PREFIX,
+        suffix: str = LIBERTY_SUFFIX,
+        format_instructions: str = FORMAT_INSTRUCTIONS,
+        ai_prefix: str = "LibertyAI",
+        human_prefix: str = "Human",
+        input_variables: Optional[List[str]] = None,
+    ) -> PromptTemplate:
+        tool_strings = "\n".join(
+            [f"> {tool.name}: {tool.description}" for tool in tools]
         )
-        self.agent_chain = AgentExecutor.from_agent_and_tools(
-            agent=agent_obj,
-            tools=tools,
-            verbose=True,
-            memory=self.memory,
-            #output_parser = LibertyOutputParser(),
-            #callback_manager=BaseCallbackManager(),
-            #**kwargs,
+        tool_names = ", ".join([tool.name for tool in tools])
+        format_instructions = format_instructions.format(
+            tool_names=tool_names, ai_prefix=ai_prefix, human_prefix=human_prefix
         )
-'''
+        template = "\n\n".join([prefix, tool_strings, format_instructions, suffix])
+        if input_variables is None:
+            input_variables = ["input", "chat_history", "agent_scratchpad", "last_output"]
+        return PromptTemplate(template=template, input_variables=input_variables)
+
+class LibertyAgentExecutor(AgentExecutor):
+
+    ai_prefix: str = "LibertyAI"
+
+    hash_table: dict = {}
+
+    def prep_outputs(
+        self,
+        inputs: Dict[str, str],
+        outputs: Dict[str, str],
+        return_only_outputs: bool = False,
+    ) -> Dict[str, str]:
+        """Validate and prep outputs."""
+        self._validate_outputs(outputs)
+        if return_only_outputs:
+            return outputs
+        else:
+            return {**inputs, **outputs}
+
+    def start_generations(self, message):
+        h = hashlib.sha256(message.encode())
+        h = h.hexdigest()
+        self.hash_table[h] = {
+            'original': message,
+            'reply': "",
+        }
+        self.agent.start_sequential()
+        return h
+
+    def get_paragraph(self, msghash):
+        if self.agent.is_done():
+            return "DONE"
+
+        if msghash not in self.hash_table:
+            return "DONE"
+        
+        try:
+            original = self.hash_table[msghash]['original']
+            reply = self.hash_table[msghash]['reply']
+        except:
+            return "DONE"
+
+        last_output = f"{self.ai_prefix}:\n{reply.strip()}" if len(reply) > 0 else ""
+
+        chat_history = self.memory.load_memory_variables(inputs=[])['history']
+
+        d = {
+            'input': original,
+            'last_output': last_output,
+            'chat_history': chat_history,
+        }
+
+        r = self.run(d)
+        r = r.replace(f"{self.ai_prefix}:",'')
+        r = r.replace("\n",'')
+        r = r.replace("  "," ")
+        r = r.split(' ')
+        if not self.agent.is_done():
+            r = r[:len(r)-2]
+        r = " ".join(r)+" "
+        reply += r
+
+        self.hash_table[msghash]['reply'] = reply
+
+        if self.agent.is_done():
+            if len(reply) > 0:
+                self.memory.save_context(
+                    inputs = {'Human': original},
+                    outputs = {self.ai_prefix: reply}
+                )
+            del self.hash_table[msghash]
+        else:
+            self.hash_table[msghash]['reply'] = reply.strip()
+
+        return r
+
+def get_vector_db_tool():
+    config = get_configuration()
+    # DB Vectors in PostgreSQL:
+    CONNECTION_STRING = PGVector.connection_string_from_db_params(
+        driver="psycopg2",
+        host=config.get('DATABASE', 'PGSQL_SERVER'),
+        port=config.get('DATABASE', 'PGSQL_SERVER_PORT'),
+        database=config.get('DATABASE', 'PGSQL_DATABASE'),
+        user=config.get('DATABASE', 'PGSQL_USER'),
+        password=config.get('DATABASE', 'PGSQL_PASSWORD'),
+    )
+    embeddings = LibertyEmbeddings(
+        endpoint = "http://libergpt.univ.social/api/embedding"
+    )
+    db = PGVector(
+        embedding_function = embeddings,
+        connection_string = CONNECTION_STRING,
+    )
+    return Tool(
+        name = "PGVector",
+        func=db.similarity_search_with_score,
+        description="useful for when you need to look up context in your database of reference texts."
+    )
+
+def initialize_agent(**kwargs: Any) -> AgentExecutor:
+
+    tools = []
+    tools.append(get_vector_db_tool())
+    tools += load_tools(
+        ["searx-search"], searx_host="https://searx.zapashcanon.fr/search",
+        llm = LibertyLLM(
+            endpoint = "http://libergpt.univ.social/api/generation",
+            temperature = 0,
+            max_tokens = 20,
+        ),
+    )
+
+    prompt = LibertyChatAgent.create_prompt(
+        tools = tools,
+        prefix = LIBERTY_PREFIX,
+        suffix = LIBERTY_SUFFIX,
+        format_instructions = FORMAT_INSTRUCTIONS,
+        ai_prefix = "LibertyAI",
+        human_prefix = "Human",
+    )
+
+    llmc  = LLMChain(
+        llm = LibertyLLM(
+            endpoint = "http://libergpt.univ.social/api/generation",
+            temperature = 0.7,
+            max_tokens = 20,
+        ),
+        prompt = prompt,
+        verbose = True,
+    )
+
+    agent_obj = LibertyChatAgent(
+        llm_chain = llmc,
+        verbose = True,
+    )
+    
+    manager = CallbackManager([StdOutCallbackHandler()])
+    mem_buffer = ConversationBufferWindowMemory(
+        k = 10,
+        ai_prefix = "LibertyAI",
+    )
+
+    return LibertyAgentExecutor.from_agent_and_tools(
+        ai_prefix = "LibertyAI",
+        agent = agent_obj,
+        tools = tools,
+        verbose = True,
+        callback_manager = manager,
+        memory = mem_buffer,
+        **kwargs,
+    )
