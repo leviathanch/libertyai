@@ -1,8 +1,8 @@
 # LibertyAI: A Libertarian ChatGPT
 
 This project is called LibertyAI.
-Its goal is to use FaceBook LLaMA for recreating ChatGPT only without all the nasty woke
-censorship going on.
+Its goal is to use Alpaca, FaceBook LLaMA tuned up to 11 using training data generated
+by GPT-3, for recreating ChatGPT only without all the nasty woke censorship going on.
 
 For the back end LangChain is being used.
 
@@ -20,9 +20,9 @@ you're free to do whatever you want, it's your GPUs.
 
 Install the following Python dependencies by running:
 
-    pip3 install bitsandbytes
+    pip3 install -U bitsandbytes
+    pip3 install -U transformers
     pip3 install -q datasets loralib sentencepiece
-    pip3 install -q git+https://github.com/zphang/transformers@c3dc391
     pip3 install -q git+https://github.com/huggingface/peft.git
 
 after that you can install LibertyAI with
