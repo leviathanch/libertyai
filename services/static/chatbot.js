@@ -2,7 +2,6 @@ function getChatWorkObject() {
     var div = document.createElement("div");
     div.className = "min-h-[20px] flex flex-col items-start gap-4 whitespace-pre-wrap";
     return div
-    
 }
 
 function getChatTextDiv(workDiv) {
@@ -46,72 +45,76 @@ function getChatDiv(text, color, avatar) {
     return top
 }
 
-var queue = [];
-function addToTypeWriterQueue(data) {
-    queue.push(data);
-    queue = queue.sort((a,b) => a.count < b.count);
+var queues = {};
+
+function addToTypeWriterQueue(hash, data) {
+    queues[hash].queue.push(data);
 }
 
-var currentWorkObject;
-
-function setCurrentWorkObject(o) {
-    currentWorkObject = o;
+function endTypeWriterJob(hash) {
+    queues[hash].active = false;
 }
 
-function typeWriter(o, i, data, resolve, reject) {
-    if (i < data.text.length) {
-        o.innerHTML += data.text.charAt(i);
-        if(o.innerHTML.search("[[DONE]]")!=-1) {
-            o.innerHTML = o.innerHTML.replace("[[DONE]]","");
-        } else {
-            setTimeout(typeWriter, 100, o, i+1, data);
-        }
-    }
-};
+function startTypeWriterJob(hash, workerObject) {
+    
+    const typeWriterPromise = function (o, i, d) {
+        return new Promise(
+            function (resolve, reject) {
+                o.appendChild(
+                    document.createTextNode(
+                        d.charAt(i)
+                    )
+                );
+                setTimeout(resolve, 100);
+            }
+       );
+    };
 
-
-function startTypeWriterJob() {
-    var busy = false;
-
-    const typeWriterPromise = (o, i, data) => {
-        return new Promise( (resolve, reject) => {
-            if (i < data.text.length) {
-                o.innerHTML += data.text.charAt(i);
-                if(o.innerHTML.search("[[DONE]]")!=-1) {
-                    o.innerHTML = o.innerHTML.replace("[[DONE]]","");
+    const recursiveTypeWriterPromise = function (o, i, d) {
+        return new Promise(
+            function (resolve, reject) {
+                if ( i < d.length ) {
+                    typeWriterPromise(o, i, d).then(
+                        function () {
+                            recursiveTypeWriterPromise(o, i+1, d);
+                            setTimeout(resolve, 500);
+                        }
+                    )
+                } else {
+                    setTimeout(resolve, 500);
                 }
             }
-            setTimeout(resolve, 50);
-        }).then(function () {
-            if (i < data.text.length) {
-                setTimeout(typeWriterPromise, 100, o, i+1, data);
-            }
-        })
-    }
+        );
+    };
 
-    const recursiveTypeWriterJob = () => {
-        return new Promise( (resolve, reject) => {
-            if (busy) {
-                resolve();
-                return 0;
-            }
-            if ( queue.length > 0 && currentWorkObject ) {
-                busy = true;
-                data = queue.shift();
-                console.log(data.text);
-                typeWriterPromise(currentWorkObject, 0, data).then(function () {
-                    busy = false;
+    const QueuePromise = function (hash, o) {
+        return new Promise(
+            function (resolve, reject) {
+                if ( queues[hash].queue.length > 0 ) {
+                    m = queues[hash].queue.shift();
+                    recursiveTypeWriterPromise(o, 0, m.data).then(
+                        function () {
+                            setTimeout(resolve, 500);
+                        }
+                    );
+                } else {
                     setTimeout(resolve, 500);
-                });
+                }
             }
-            setTimeout(resolve, 500);
-        }).then(function () {
-            setTimeout(recursiveTypeWriterJob, 500);
-        })
+       );
+    };
+
+    const recursiveQueueJob = (hash, workerObject) => {
+        if ( queues[hash].queue.length > 0 || queues[hash].active ) {
+            QueuePromise(hash, workerObject).then(function () {
+                setTimeout(recursiveQueueJob, 500, hash, workerObject);
+            });
+        }
     }
-    recursiveTypeWriterJob();
+
+    queues[hash]={
+        'active': true,
+        'queue': [],
+    }
+    recursiveQueueJob(hash, workerObject);
 };
-
-
-
-

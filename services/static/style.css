@@ -84,7 +84,6 @@ body {
   }
 }
 
-
 /*
  * Cover
  */
@@ -96,44 +95,42 @@ body {
   font-weight: 700;
 }
 
+/*
+ * Chatbot
+ */
+
+@media screen and (max-width: 320px) {
+  emoji-picker {
+    --num-columns: 6;
+    --category-emoji-size: 1.125rem;
+  }
+}
+
+div.blinkyChat {
+    width: 80%;
+    vertical-align: text-bottom;
+    gap: 2px;
+}
+
+div.blinkyChat::after {
+    content: "▎";
+    width: 5px;
+    background: #fff;
+    display: inline-block;
+    animation: cursor-blink 1.5s steps(2) infinite;
+}
+
+@keyframes cursor-blink {
+  0% {
+    opacity: 0;
+  }
+}
 
 /*
  * Footer
  */
 .mastfoot {
   color: rgba(255, 255, 255, .5);
-}
-
-/*
- * Chatbot
- */
-
-@keyframes cursor-blink {
-    0% {
-        opacity: 0;
-    }
-}
-
-p.blinkyBotText {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-p.blinkyBotText::after {
-  content: "";
-  width: 5px;
-  height: 20px;
-  background: white;
-  display: inline-block;
-  animation: cursor-blink 1.5s steps(2) infinite;
-}
-
-#tidbit {
-    position:absolute;
-    bottom:0;
-    right:0;
-    width: 300px;
 }
 
 /*

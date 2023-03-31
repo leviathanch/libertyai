@@ -8,21 +8,31 @@
 </div>
 
 <div class="relative bottom-1 left-0 w-full border-t md:border-t-0 dark:border-white/20 md:border-transparent md:dark:border-transparent dark dark:bg-gray-800 pt-2">
+    <emoji-picker id="emojiPicker" class="dark" style="display: none; absolute p-1 rounded-md text-gray-500 top-1 bottom-1.5 md:bottom-2.5 right-1 md:right-2"></emoji-picker>    
     <div class="flex flex-col w-full py-2 flex-grow md:py-3 md:pl-4 relative border border-black/10 dark:bg-gray-700 dark:border-gray-900/50 dark:text-white dark:bg-gray-700 rounded-md">
-        <textarea id="textInput" rows="1" class="m-0 w-full resize-none border-0 bg-transparent p-0 pr-7 focus:ring-0 focus-visible:ring-0 dark:bg-transparent pl-2 md:pl-0" style="max-height: 200px; height: 24px; overflow-y: hidden;" ></textarea>
-        <button id="buttonInput" class="absolute p-1 rounded-md text-gray-500 bottom-1.5 md:bottom-2.5 hover:bg-gray-100 dark:hover:text-gray-400 right-1 md:right-2">
-            <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 mr-1" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
-                <line x1="22" y1="2" x2="11" y2="13"></line>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-        </button>
+        <textarea id="textInput" rows="1" class="m-0 w-full resize-none border-0 bg-transparent p-0 pr-7 focus:ring-0 focus-visible:ring-0 dark:bg-transparent pl-2 md:pl-0"></textarea>
+        <div class="absolute p-1 rounded-md text-gray-500 top-1 bottom-1.5 md:bottom-2.5 right-1 md:right-2">
+            <button id="buttonInput" class="p-1 rounded-md text-gray-500 hover:bg-gray-500 dark:hover:text-gray-400">
+                <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 mr-1" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>
+            <button id="buttonEmoji" class="p-1 rounded-md text-gray-500 hover:bg-gray-500 dark:hover:text-gray-400">
+                🙂
+            </button>
+        </div>
     </div>
 </div>
 
+<script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
 <script>
-startTypeWriterJob();
 function getBotResponse() {
+    if ($("#textInput").val()==="") {
+        return 0;
+    }
+
     var rawText = $("#textInput").val().split("\n").join("<br/>");
     $("#textInput").val("");
 
@@ -42,13 +52,21 @@ function getBotResponse() {
         "{{ url_for('static', filename='avatar.png') }}"
     );
     $("#chatbox").append(newChatBotField);
-    setCurrentWorkObject(chatBotWorkObject);
-    $.get("/chatbot/start_generation", { msg: rawText }).done( function(data) {
+    var txt = document.createElement("div");
+    txt.classList.add("blinkyChat");
+    chatBotWorkObject.append(txt);
+    $.get("/chatbot/start_generation", { msg: rawText }).done( function(hash) {
+        startTypeWriterJob(hash, txt);
         const retrievalWorker = new Worker("{{ url_for('static', filename='retrievalWorker.js') }}");
-        retrievalWorker.addEventListener("message", function handleMessageFromWorker(text) {
-            addToTypeWriterQueue(text.data);
+        retrievalWorker.addEventListener("message", function (text) {
+            if ( text.data === "[DONE]" ) {
+                endTypeWriterJob(hash);
+                txt.classList.remove("blinkyChat");
+            } else {
+                addToTypeWriterQueue(hash, text);
+            }
         });
-        retrievalWorker.postMessage({hash: data});
+        retrievalWorker.postMessage(hash);
     });
 }
 
@@ -65,12 +83,35 @@ document.getElementById('textInput').addEventListener('keydown', function (e) {
 document.getElementById('textInput').addEventListener('input', function () {
     this.style.height = 0;
     this.style.height = (this.scrollHeight) + "px";
+    document.getElementById("emojiPicker").style.display = "none";
 });
 
 $("#buttonInput").click(function() {
-      getBotResponse();
-})
+    getBotResponse();
+});
 
+$("#textInput").click(function() {
+    document.getElementById("emojiPicker").style.display = "none";
+});
+
+$("#buttonEmoji").click(function() {
+    var visible = document.getElementById("emojiPicker").style.display;
+    if ( visible === "none" ) {
+        visible = "block";
+    } else if ( visible === "block" ) {
+        visible = "none";
+    }
+    document.getElementById("emojiPicker").style.display = visible;
+});
+
+document.querySelector('emoji-picker').addEventListener('emoji-click', e => {
+    var cursorPos = $('#textInput').prop('selectionStart');
+    var v = $('#textInput').val();
+    var textBefore = v.substring(0,  cursorPos);
+    var textAfter  = v.substring(cursorPos, v.length);
+    $('#textInput').val(textBefore + e.detail.unicode + textAfter);
+});
+  
 </script>
 
 {% endblock %}
