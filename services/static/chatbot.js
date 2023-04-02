@@ -18,26 +18,30 @@ function getChatTextDiv(workDiv) {
     return div0
 }
 
-function getAvatarDiv(avatar) {
+function getAvatarDiv(avatar, username) {
     var div0 = document.createElement("div");
     var div1 = document.createElement("div");
+    var namediv = document.createElement("div");
     var img = document.createElement("img");
     img.height = img.width = 40;
     img.src = avatar;
-    div0.className = "w-[40px] flex flex-col relative items-end";
+    div0.className = "w-[60px] flex flex-col relative items-end";
     div1.className = "relative h-[40px] w-[40px] p-1 rounded-sm text-white flex items-center justify-center";
-    div1.append(img)
-    div0.append(div1)
+    namediv.innerHTML = username;
+    namediv.className = "avatarName justify-center w-[60px] p-1 rounded-sm text-white flex items-center justify-center";
+    div1.append(img);
+    div0.append(div1);
+    div0.append(namediv);
     return div0
 }
 
-function getChatDiv(text, color, avatar) {
+function getChatDiv(text, color, avatar, username) {
     var top = document.createElement("div");
     var div0 = document.createElement("div");
     var div1 = document.createElement("div");
     div0.className = "flex flex-col items-center text-sm dark:bg-gray-800 "+color;
     div1.className = "text-base gap-4 md:gap-6 md:max-w-2xl lg:max-w-2xl xl:max-w-3xl p-4 md:py-6 flex lg:px-0 m-auto";
-    div1.append(getAvatarDiv(avatar))
+    div1.append(getAvatarDiv(avatar, username))
     div1.append(getChatTextDiv(text))
     div0.append(div1)
     top.className = "group w-full text-gray-800 dark:text-gray-100 border-b border-black/10 dark:border-gray-900/50 "+color;
@@ -48,11 +52,7 @@ function getChatDiv(text, color, avatar) {
 var queues = {};
 
 function addToTypeWriterQueue(hash, data) {
-    queues[hash].queue.push(data);
-}
-
-function endTypeWriterJob(hash) {
-    queues[hash].active = false;
+    queues[hash].push(data);
 }
 
 function startTypeWriterJob(hash, workerObject) {
@@ -76,12 +76,15 @@ function startTypeWriterJob(hash, workerObject) {
                 if ( i < d.length ) {
                     typeWriterPromise(o, i, d).then(
                         function () {
-                            recursiveTypeWriterPromise(o, i+1, d);
-                            setTimeout(resolve, 500);
+                            recursiveTypeWriterPromise(o, i+1, d).then(
+                                function () {
+                                    resolve();
+                                }
+                            );
                         }
                     )
                 } else {
-                    setTimeout(resolve, 500);
+                    resolve();
                 }
             }
         );
@@ -90,31 +93,35 @@ function startTypeWriterJob(hash, workerObject) {
     const QueuePromise = function (hash, o) {
         return new Promise(
             function (resolve, reject) {
-                if ( queues[hash].queue.length > 0 ) {
-                    m = queues[hash].queue.shift();
-                    recursiveTypeWriterPromise(o, 0, m.data).then(
-                        function () {
-                            setTimeout(resolve, 500);
-                        }
-                    );
+                if ( queues[hash].length > 0 ) {
+                    m = queues[hash].shift();
+                    if (m.data === "[DONE]") {
+                        resolve("done");
+                    } else {
+                        recursiveTypeWriterPromise(o, 0, m.data).then(
+                            function () {
+                                resolve("idle");
+                            }
+                        );
+                    }
                 } else {
-                    setTimeout(resolve, 500);
+                    resolve("idle");
                 }
             }
        );
     };
 
     const recursiveQueueJob = (hash, workerObject) => {
-        if ( queues[hash].queue.length > 0 || queues[hash].active ) {
-            QueuePromise(hash, workerObject).then(function () {
+        QueuePromise(hash, workerObject).then(function (state) {
+            if ( state === "done") {
+                workerObject.classList.remove("blinkyChat");
+                workerObject.classList.add("normalChat");
+            } else {
                 setTimeout(recursiveQueueJob, 500, hash, workerObject);
-            });
-        }
+            }
+        });
     }
 
-    queues[hash]={
-        'active': true,
-        'queue': [],
-    }
+    queues[hash]=[]
     recursiveQueueJob(hash, workerObject);
 };

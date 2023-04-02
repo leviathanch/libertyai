@@ -30,9 +30,8 @@ import argparse
 def load_model(config):
     quantization_config = BitsAndBytesConfig(
         load_in_8bit = True,
-        #load_in_8bit = False,
         llm_int8_enable_fp32_cpu_offload = True,
-        llm_int8_skip_modules=["lm_head","model.embed_tokens","model.norm"]
+        llm_int8_skip_modules=["lm_head"] #,"model.embed_tokens","model.norm"]
     )
 
     dmap = {
@@ -80,6 +79,7 @@ def load_model(config):
 
     model = LLaMAForCausalLM.from_pretrained(
         "chavinlo/alpaca-native",
+        #"wxjiao/alpaca-7b",
         torch_dtype=torch.float16,
         **model_kwargs
     )

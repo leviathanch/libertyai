@@ -1,7 +1,33 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 class="title">
-  Welcome, {{ name }}
-</h1>
+
+<div class="col-md-10" id="colorDiv">
+    <div class="col-md-9" id="innerDiv">
+        <br/>
+        <div class="page-header">
+            <h3 class="title">Change the user name</h3>
+        </div>
+        <form method="POST" action="/profile/username">
+            <div class="form-group">
+                <label for="name">Username</label>
+                <input  class="form-control" type="text" name="name" placeholder="{{name}}" autofocus="" maxlength="10">
+            </div>
+            <button id="submitBtn">Save</button>
+        </form>
+        <br/>
+        <div class="page-header">
+            <h3 class="title">Change your avatar pic</h3>
+        </div>
+        <form method="POST" action="/profile/avatar">
+            <div class="form-group">
+                <label for="name">Avatar</label>
+                <input  class="form-control" type="text" name="name" placeholder="{{name}}" autofocus="">
+            </div>
+            <button id="submitBtn">Save</button>
+        </form>
+    </div>
+</div>
+
+
 {% endblock %}

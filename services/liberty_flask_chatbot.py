@@ -33,7 +33,7 @@ from werkzeug.security import (
 
 from flask_sqlalchemy import SQLAlchemy
 
-from LibertyAI import initialize_agent
+from LibertyAI import initialize_chatbot
 from LibertyAI.liberty_config import get_configuration
 
 config = get_configuration()
@@ -97,7 +97,7 @@ def login_post():
     if user and check_password_hash(user.password, password.strip()):
         # if the above check passes, then we know the user has the right credentials
         login_user(user, remember=remember)
-        active_bots[user.id] = initialize_agent()
+        active_bots[user.id] = initialize_chatbot(name=user.name, email=user.email)
         return redirect(url_for('chatbot'))
     else:
         flash('Please check your login details and try again.')
@@ -138,6 +138,16 @@ def signup_post():
 def profile():
     return render_template("profile.html", name=current_user.name)
 
+@app.route('/profile/username', methods=['POST'])
+@login_required
+def post_profile_username():
+    name = request.form.get('name')
+    name = name.replace("'",'').replace(";",'').replace('"','')
+    if len(name) > 0:
+        current_user.name = name;
+    db.session.commit()
+    return redirect(url_for('profile'))
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -153,7 +163,7 @@ def load_user(user_id):
 @app.route("/chatbot")
 @login_required
 def chatbot():
-    return render_template("chatbot.html")
+    return render_template("chatbot.html", username=current_user.name)
 
 # ------------------------
 
@@ -166,7 +176,7 @@ def chatbot_start_generation():
         return ""
 
     if current_user.id not in active_bots:
-        active_bots[current_user.id] = initialize_agent()
+        active_bots[current_user.id] = initialize_chatbot(name=current_user.name, email=current_user.email)
 
     msghash = active_bots[current_user.id].start_generations(message)
 
@@ -178,26 +188,14 @@ def chatbot_get_part():
     try:
         msghash = request.args.get('id')
     except:
-        return "[[DONE]]"
+        return "[DONE]"
 
     if current_user.id not in active_bots:
-        return "[[DONE]]"
+        return "[DONE]"
 
     next_paragraph = active_bots[current_user.id].get_paragraph(msghash)
-    if next_paragraph.strip() == "":
-        return "[[DONE]]"
 
     return next_paragraph
-
-@app.route("/chatbot/get")
-@login_required
-def get_bot_response():
-    message = request.args.get('msg')
-    if current_user.id not in active_bots:
-        active_bots[current_user.id] = initialize_agent()
-    #reply = active_bots[current_user.id].chat(message)
-    return reply
-
 
 if __name__ == "__main__":
     active_bots = {}

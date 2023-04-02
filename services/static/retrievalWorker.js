@@ -8,7 +8,7 @@ const retrievalPromise = function (hash) {
                 var text = this.responseText
                 self.postMessage(text);
                 if ( text !== "[DONE]") {
-                    retrievalPromise(hash).then(function () {
+                    retrievalPromise(hash).then(function (state) {
                         setTimeout(resolve, 50, "iterating");
                     });
                 } else {
