@@ -8,8 +8,8 @@ import threading
 import torch
 
 from transformers import (
-    LLaMATokenizer,
-    LLaMAForCausalLM,
+    LlamaTokenizer,
+    LlamaForCausalLM,
     pipeline,
     BitsAndBytesConfig,
 )
@@ -23,13 +23,15 @@ from langchain.llms import HuggingFacePipeline
 from langchain.embeddings.huggingface import HuggingFaceEmbeddings
 from langchain.vectorstores.pgvector import ADA_TOKEN_COUNT
 
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
 from sentence_transformers import SentenceTransformer, util
 
 import argparse
 
 def load_model(config):
     quantization_config = BitsAndBytesConfig(
-        load_in_8bit = True,
+        load_in_8bit = False,
         llm_int8_enable_fp32_cpu_offload = True,
         llm_int8_skip_modules=["lm_head"] #,"model.embed_tokens","model.norm"]
     )
@@ -77,9 +79,8 @@ def load_model(config):
         "quantization_config": quantization_config
     }
 
-    model = LLaMAForCausalLM.from_pretrained(
+    model = LlamaForCausalLM.from_pretrained(
         "chavinlo/alpaca-native",
-        #"wxjiao/alpaca-7b",
         torch_dtype=torch.float16,
         **model_kwargs
     )
@@ -162,18 +163,8 @@ def register_model(app):
         else:
             return {'error': "Invalid API key"}
 
-#Mean Pooling - Take attention mask into account for correct averaging
-def mean_pooling(model_output, attention_mask):
-    token_embeddings = model_output[0] #First element of model_output contains all token embeddings
-    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
-
 def embed_text(text):
-    encoded_input = tokenizer([text], return_tensors='pt')
-    with torch.no_grad():
-        model_output = model(**encoded_input)
-    sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
-    return sentence_embeddings
+    return embedding_model.encode([text])
 
 def register_embedding(app):
     @app.route('/api/embedding', methods=['POST'])
@@ -200,6 +191,31 @@ def register_embedding(app):
         else:
             return {'error': "Invalid API key"}
 
+def register_sentiment(app):
+    @app.route('/api/sentiment', methods=['POST'])
+    def sentiment():
+        data = request.get_json()
+        try:
+            key = data['API_KEY']
+        except:
+            return {'error': "Invalid API key"}
+
+        try:
+            text = data['text']
+        except:
+            return {'error': "No text provided"}
+
+        if key == config.get('DEFAULT', 'API_KEY'):
+            sem.acquire()
+            gc.collect()
+            sent = sentiment_model.polarity_scores(text)
+            gc.collect()
+            torch.cuda.empty_cache()
+            sem.release()
+            return sent
+        else:
+            return {'error': "Invalid API key"}
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         prog='LibertyAI: API server',
@@ -209,19 +225,24 @@ if __name__ == '__main__':
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-m', '--model', action='store_true')
     parser.add_argument('-e', '--embeddings', action='store_true')
+    parser.add_argument('-s', '--sentiment', action='store_true')
     args = parser.parse_args()
     if args.model or args.embeddings:
         config = get_configuration()
         sem = threading.Semaphore(10)
         app = Flask(__name__)
-        tokenizer = LLaMATokenizer.from_pretrained("decapoda-research/llama-7b-hf")
-        model = load_model(config)
         gc.freeze()
         gc.enable()
         if args.model:
+            tokenizer = LlamaTokenizer.from_pretrained("decapoda-research/llama-7b-hf")
+            model = load_model(config)
             register_model(app)
         if args.embeddings:
+            embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
             register_embedding(app)
+        if args.sentiment:
+            sentiment_model = SentimentIntensityAnalyzer()
+            register_sentiment(app)
         http_server = WSGIServer(('', int(config.get('DEFAULT', 'APIServicePort'))), app)
         http_server.serve_forever()
     else:

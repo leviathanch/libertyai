@@ -79,10 +79,6 @@ login_manager.init_app(app)
 def home():
     return redirect("/chatbot", code=302)
 
-@app.route('/index')
-def index():
-    return render_template("index.html")
-
 @app.route('/login', methods=['POST'])
 def login_post():
     try:
@@ -148,13 +144,23 @@ def post_profile_username():
     db.session.commit()
     return redirect(url_for('profile'))
 
+@app.route('/profile/avatar', methods=['POST'])
+@login_required
+def post_profile_avatar():
+    #name = request.form.get('name')
+    #name = name.replace("'",'').replace(";",'').replace('"','')
+    #if len(name) > 0:
+    #    current_user.name = name;
+    #db.session.commit()
+    return redirect(url_for('profile'))
+
 @app.route('/logout')
 @login_required
 def logout():
     if current_user.id in active_bots:
         del active_bots[current_user.id]
     logout_user()
-    return redirect(url_for('index'))
+    return redirect(url_for('chatbot'))
 
 @login_manager.user_loader
 def load_user(user_id):
