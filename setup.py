@@ -19,6 +19,7 @@ setup(
     description='A clone of ChatGPT, based on LLaMA, without woke censorship',
     long_description=open('README.md').read(),
     install_requires=[
+        'accelerate',
         'argparse',
         'appdirs',
         'bs4',
@@ -44,5 +45,6 @@ setup(
         'SQLAlchemy==1.4.18',
         'spacy',
         'vaderSentiment',
+        'word2number',
     ],
 )
