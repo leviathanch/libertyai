@@ -1,7 +1,7 @@
 from langchain.llms import OpenAI
 from langchain.agents import initialize_agent, Tool
 from langchain.agents import load_tools
-from word2number import w2n
+#from word2number import w2n
 from datetime import date, datetime, timezone, timedelta
 
 from langchain.vectorstores.pgvector import PGVector
