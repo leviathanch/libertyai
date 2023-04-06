@@ -41,7 +41,7 @@ def initialize_chatbot(**kwargs: Any) -> LibertyChain:
     
     conv_mem = ConversationBufferWindowMemory(
         ai_prefix = "LibertyAI",
-        k = 5,
+        k = 1,
     )
 
     emb = LibertyEmbeddings(
