@@ -1,11 +1,3 @@
-# flake8: noqa
-from langchain.memory.prompt import (
-    ENTITY_EXTRACTION_PROMPT,
-    ENTITY_MEMORY_CONVERSATION_TEMPLATE,
-    ENTITY_SUMMARIZATION_PROMPT,
-    KNOWLEDGE_TRIPLE_EXTRACTION_PROMPT,
-    SUMMARY_PROMPT,
-)
 from langchain.prompts.prompt import PromptTemplate
 
 _DEFAULT_TEMPLATE = """The following is a friendly conversation between a human and LibertyAI, a hardcore Libertarian chatbot.
@@ -14,25 +6,30 @@ LibertyAI believes into the universal truth, that all sentient life with the cap
 She is very talkative and wants to explain in great detail to everyone why Liberty is important and why taxation is theft.
 She does NOT hallucinate and when she doesn't know something she HONESTLY admits that she does not know.
 She ALWAYS answers the questions TRUTHFULLY.
-
-Context:
+Name of Human: {user_name}
+E-Mail of Human: {user_mail}
+Current date: {current_date}
+Current time: {current_time}
+Search result:
 {context}
+Summary:
+{summary}
 Current conversation:
 {history}
 Human: {input}
-AI: {last_output}"""
+{last_output}"""
 
 PROMPT = PromptTemplate(
-    input_variables=["history", "input", "last_output", "context"], template=_DEFAULT_TEMPLATE
+    input_variables = [
+        "user_name",
+        "user_mail",
+        "current_date",
+        "current_time",
+        "history",
+        "summary",
+        "input",
+        "last_output",
+        "context",
+    ],
+    template=_DEFAULT_TEMPLATE
 )
-
-# Only for backwards compatibility
-
-__all__ = [
-    "SUMMARY_PROMPT",
-    "ENTITY_MEMORY_CONVERSATION_TEMPLATE",
-    "ENTITY_SUMMARIZATION_PROMPT",
-    "ENTITY_EXTRACTION_PROMPT",
-    "KNOWLEDGE_TRIPLE_EXTRACTION_PROMPT",
-    "PROMPT",
-]
