@@ -16,6 +16,7 @@ def get_configuration():
         # General stuff for getting it to start up
         config.set('DEFAULT', 'APIServicePort', value='5001')
         config.set('DEFAULT', 'API_KEY', value=hashlib.sha256(os.urandom(32)).hexdigest())
+        config.set('DEFAULT', 'LLAMA_CPP_MODEL', '')
         # Data base settings
         config.add_section('DATABASE')
         config.set('DATABASE', 'PGSQL_SERVER', value='localhost')

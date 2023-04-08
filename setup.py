@@ -46,5 +46,7 @@ setup(
         'spacy',
         'vaderSentiment',
         'word2number',
+        'pyllamacpp',
+        'llama-cpp-python',
     ],
 )

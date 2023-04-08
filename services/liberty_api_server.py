@@ -14,8 +14,6 @@ from transformers import (
     BitsAndBytesConfig,
 )
 
-from peft import PeftModel
-
 from LibertyAI import get_configuration
 
 from langchain.llms import HuggingFacePipeline
@@ -54,8 +52,8 @@ def load_model(config):
         'model.layers.13': 0,
         'model.layers.14': 0,
         'model.layers.15': 0,
-        'model.layers.16': 1,
-        'model.layers.17': 1,
+        'model.layers.16': 0,
+        'model.layers.17': 0,
         'model.layers.18': 1,
         'model.layers.19': 1,
         'model.layers.20': 1,

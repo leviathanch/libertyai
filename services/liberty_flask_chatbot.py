@@ -35,6 +35,11 @@ from flask_sqlalchemy import SQLAlchemy
 
 from LibertyAI import initialize_chatbot
 from LibertyAI.liberty_config import get_configuration
+from LibertyAI.liberty_embedding import LibertyEmbeddings
+from LibertyAI.liberty_llm import LibertyLLM
+
+from langchain.llms import LlamaCpp
+from langchain.embeddings import LlamaCppEmbeddings
 
 config = get_configuration()
 SQLALCHEMY_DATABASE_URI = 'postgresql://'
@@ -93,7 +98,12 @@ def login_post():
     if user and check_password_hash(user.password, password.strip()):
         # if the above check passes, then we know the user has the right credentials
         login_user(user, remember=remember)
-        active_bots[user.id] = initialize_chatbot(name=user.name, email=user.email)
+        active_bots[user.id] = initialize_chatbot(
+            name=user.name,
+            email=user.email,
+            llm = llm,
+            emb = emb,
+        )
         return redirect(url_for('chatbot'))
     else:
         flash('Please check your login details and try again.')
@@ -182,7 +192,12 @@ def chatbot_start_generation():
         return ""
 
     if current_user.id not in active_bots:
-        active_bots[current_user.id] = initialize_chatbot(name=current_user.name, email=current_user.email)
+        active_bots[current_user.id] = initialize_chatbot(
+            name = current_user.name,
+            email = current_user.email,
+            llm = llm,
+            emb = emb,
+        )
 
     msghash = active_bots[current_user.id].start_generations(message)
 
@@ -203,7 +218,31 @@ def chatbot_get_part():
 
     return next_paragraph
 
+
+def liberty_llm():
+    return LibertyLLM(
+        endpoint = "https://libergpt.univ.social/api/generation",
+        temperature = 0.7,
+        max_tokens = 20,
+        verbose = True,
+    )
+
+def liberty_embedding():
+    return LibertyEmbeddings(
+        endpoint = "https://libergpt.univ.social/api/embedding"
+    )
+
+def llamacpp_llm():
+    return LlamaCpp(
+        model_path = config.get('DEFAULT', 'LLAMA_CPP_MODEL'),
+        max_tokens = 20
+    )
+
 if __name__ == "__main__":
+    #llm = liberty_llm()
+    llm = llamacpp_llm()
+    #emb = liberty_embedding()
+    emb = None
     active_bots = {}
     active_conversations = {}
     app.run(host='0.0.0.0', port=5000)
