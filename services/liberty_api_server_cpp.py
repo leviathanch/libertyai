@@ -5,7 +5,7 @@ from gevent.pywsgi import WSGIServer
 
 import threading
 
-from LibertyAI import get_configuration
+from LibertyAI.liberty_config import get_configuration
 
 from llama_cpp import Llama
 import torch
