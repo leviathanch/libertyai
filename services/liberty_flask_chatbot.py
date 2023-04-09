@@ -33,7 +33,7 @@ from werkzeug.security import (
 
 from flask_sqlalchemy import SQLAlchemy
 
-from LibertyAI import initialize_chatbot
+from LibertyAI.liberty_chatbot import initialize_chatbot
 from LibertyAI.liberty_config import get_configuration
 from LibertyAI.liberty_embedding import LibertyEmbeddings
 from LibertyAI.liberty_llm import LibertyLLM
