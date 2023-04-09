@@ -154,7 +154,7 @@ class LibertyChain(LLMChain, BaseModel):
             'user_mail': self.user_mail,
             'stop': ["Human"],
         }
-        output = self.run(d.strip())
+        output = self.run(d)
         print("output",output)
         output = output.replace("<current_time>",datetime.now().strftime("%H:%M %p"))
         output = output.replace("<current_date>",datetime.now().strftime("%A (%d/%m/%Y)"))
