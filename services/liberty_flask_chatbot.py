@@ -223,8 +223,7 @@ def liberty_llm():
     return LibertyLLM(
         endpoint = "https://libergpt.univ.social/api/generation",
         temperature = 0.7,
-        max_tokens = 20,
-        verbose = True,
+        max_tokens = 10,
     )
 
 def liberty_embedding():
@@ -232,17 +231,9 @@ def liberty_embedding():
         endpoint = "https://libergpt.univ.social/api/embedding"
     )
 
-def llamacpp_llm():
-    return LlamaCpp(
-        model_path = config.get('DEFAULT', 'LLAMA_CPP_MODEL'),
-        max_tokens = 20
-    )
-
 if __name__ == "__main__":
-    #llm = liberty_llm()
-    llm = llamacpp_llm()
-    #emb = liberty_embedding()
-    emb = None
+    llm = liberty_llm()
+    emb = liberty_embedding()
     active_bots = {}
     active_conversations = {}
     app.run(host='0.0.0.0', port=5000)

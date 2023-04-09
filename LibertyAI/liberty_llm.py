@@ -35,10 +35,28 @@ class LibertyLLM(LLM):
         )
         try:
             reply = response.json()
-            return reply['generated_text'].strip()
         except:
-            print(response)
+            print("LibertyLLM_call",response)
             return ""
+
+        if 'choices' in reply:
+            choices = reply['choices']
+            if len(choices) > 0:
+                choice = choices[0]
+                if 'text' in choice:
+                    text = choice['text']
+                    return text[(len(prompt)-1):].strip()
+                else:
+                    return ""
+            else:
+                return ""
+        else:
+            return ""
+        #text = reply['choices'][0] #['text']
+        #print(text)
+        #text = text[len(prompt):]
+        #print(text)
+        return ""
 
     @property
     def _identifying_params(self) -> Mapping[str, Any]:
