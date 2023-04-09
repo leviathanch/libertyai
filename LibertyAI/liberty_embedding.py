@@ -16,7 +16,7 @@ class LibertyEmbeddings(Embeddings, BaseModel):
         config = get_configuration()
         json_data = {
             'text' : text,
-            'API_KEY': config.get('DEFAULT', 'API_KEY'),
+            'API_KEY': config.get('API', 'KEY'),
         }
         response = requests.post(
             self.endpoint,

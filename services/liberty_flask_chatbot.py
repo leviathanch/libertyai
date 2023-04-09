@@ -221,14 +221,14 @@ def chatbot_get_part():
 
 def liberty_llm():
     return LibertyLLM(
-        endpoint = "https://libergpt.univ.social/api/generation",
+        endpoint = config.get('API', 'GENERATION_ENDPOINT'),
         temperature = 0.7,
         max_tokens = 10,
     )
 
 def liberty_embedding():
     return LibertyEmbeddings(
-        endpoint = "https://libergpt.univ.social/api/embedding"
+        endpoint = config.get('API', 'EMBEDDING_ENDPOINT'),
     )
 
 if __name__ == "__main__":

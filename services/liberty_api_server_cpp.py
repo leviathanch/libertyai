@@ -50,7 +50,7 @@ def register_model(app):
         except:
             stop_tokens = []
         
-        if key == config.get('DEFAULT', 'API_KEY'):
+        if key == config.get('API', 'KEY'):
             sem.acquire()
             output = llm(text, stop=stop_tokens, max_tokens=max_new_tokens, temperature=temp, echo=True)
             sem.release()
@@ -75,7 +75,7 @@ def register_embedding(app):
         except:
             return {'error': "No text provided"}
 
-        if key == config.get('DEFAULT', 'API_KEY'):
+        if key == config.get('API', 'KEY'):
             sem.acquire()
             output = embed_text(text)
             torch.cuda.empty_cache()
@@ -98,7 +98,7 @@ def register_sentiment(app):
         except:
             return {'error': "No text provided"}
 
-        if key == config.get('DEFAULT', 'API_KEY'):
+        if key == config.get('API', 'KEY'):
             sem.acquire()
             sent = sentiment_model.polarity_scores(text)
             sem.release()

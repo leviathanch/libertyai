@@ -15,8 +15,12 @@ def get_configuration():
     else:
         # General stuff for getting it to start up
         config.set('DEFAULT', 'APIServicePort', value='5001')
-        config.set('DEFAULT', 'API_KEY', value=hashlib.sha256(os.urandom(32)).hexdigest())
         config.set('DEFAULT', 'LLAMA_CPP_MODEL', '')
+        # API
+        config.add_section('API')
+        config.set('API', 'KEY', value=hashlib.sha256(os.urandom(32)).hexdigest())
+        config.set('API', 'GENERATION_ENDPOINT', "https://libergpt.univ.social/api/generation")
+        config.set('API', 'EMBEDDING_ENDPOINT', "https://libergpt.univ.social/api/embedding")
         # Data base settings
         config.add_section('DATABASE')
         config.set('DATABASE', 'PGSQL_SERVER', value='localhost')

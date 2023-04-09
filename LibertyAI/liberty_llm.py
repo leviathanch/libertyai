@@ -23,7 +23,7 @@ class LibertyLLM(LLM):
         json_data = {
             'input' : prompt,
             'temperature' : self.temperature,
-            'API_KEY': config.get('DEFAULT', 'API_KEY'),
+            'API_KEY': config.get('API', 'KEY'),
             'max_new_tokens': self.max_tokens,
         }
         if stop is not None:

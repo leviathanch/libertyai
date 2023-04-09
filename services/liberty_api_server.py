@@ -132,7 +132,7 @@ def register_model(app):
         except:
             num_beams = 4
 
-        if key == config.get('DEFAULT', 'API_KEY'):
+        if key == config.get('API', 'KEY'):
             sem.acquire()
             pipe = pipeline(
                 "text-generation",
@@ -178,7 +178,7 @@ def register_embedding(app):
         except:
             return {'error': "No text provided"}
 
-        if key == config.get('DEFAULT', 'API_KEY'):
+        if key == config.get('API', 'KEY'):
             sem.acquire()
             gc.collect()
             output = embed_text(text)
@@ -203,7 +203,7 @@ def register_sentiment(app):
         except:
             return {'error': "No text provided"}
 
-        if key == config.get('DEFAULT', 'API_KEY'):
+        if key == config.get('API', 'KEY'):
             sem.acquire()
             gc.collect()
             sent = sentiment_model.polarity_scores(text)
