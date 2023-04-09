@@ -52,10 +52,7 @@ class LibertyLLM(LLM):
                 return ""
         else:
             return ""
-        #text = reply['choices'][0] #['text']
-        #print(text)
-        #text = text[len(prompt):]
-        #print(text)
+
         return ""
 
     @property
