@@ -1,3 +1,5 @@
+import time
+
 from langchain.llms.base import LLM
 from typing import Optional, List, Mapping, Any
 
@@ -7,59 +9,51 @@ from LibertyAI.liberty_config import get_configuration
 class LibertyLLM(LLM):
 
     endpoint: str
-    temperature: float
-    max_tokens: int
-
-    json_headers = {
-        'content-type': 'application/json',
-    }
+    #temperature: float
+    #max_tokens: int
 
     @property
     def _llm_type(self) -> str:
         return "liberty"
 
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
+        uuid = self.submit_partial(prompt)
+        ret = ""
+        text = ""
+        i = 0
+        while text != "[DONE]":
+            text = self.get_partial(uuid, i)
+            if text == "[BUSY]":
+                time.sleep(0.1)
+                continue
+            i += 1
+            if text != "[DONE]":
+                ret += text
+
+        return ret
+
+    def submit_partial(self, prompt: str) -> str:
+        prompt = prompt.replace("[DONE]", b'\xf0\x9f\x96\x95').replace("[BUSY]", b'\xf0\x9f\x96\x95')
         config = get_configuration()
-        json_data = {
-            'input' : prompt,
-            'temperature' : self.temperature,
-            'API_KEY': config.get('API', 'KEY'),
-            'max_new_tokens': self.max_tokens,
-        }
-        if stop is not None:
-            json_data['stop_tokens'] = stop
-
         response = requests.post(
-            self.endpoint,
-            json = json_data,
+            self.endpoint+'/submit',
+            json = {'text' : prompt},
         )
-        try:
-            reply = response.json()
-        except:
-            print("LibertyLLM_call",response)
-            return ""
-
-        if 'choices' in reply:
-            choices = reply['choices']
-            if len(choices) > 0:
-                choice = choices[0]
-                if 'text' in choice:
-                    text = choice['text']
-                    return text[(len(prompt)-1):].strip()
-                else:
-                    return ""
-            else:
-                return ""
+        reply = response.json()
+        if 'uuid' in reply:
+            return reply['uuid']
         else:
             return ""
 
-        return ""
+    def get_partial(self, uuid, index):
+        config = get_configuration()
+        response = requests.post(
+            self.endpoint+'/fetch',
+            json = {'uuid' : uuid, 'index': str(index) },
+        )
+        reply = response.json()
+        text = ""
+        if 'text' in reply:
+            text = reply['text']
 
-    @property
-    def _identifying_params(self) -> Mapping[str, Any]:
-        """Get the identifying parameters."""
-        return {
-            'max_new_tokens': self.max_tokens,
-            'temperature' : self.temperature,
-        }
-
+        return text

@@ -22,9 +22,7 @@ from LibertyAI.liberty_agent import (
 def initialize_chatbot(**kwargs: Any) -> LibertyChain:
 
     main_llm = kwargs['llm']
-    print(type(main_llm))
     main_emb = kwargs['emb']
-    print(type(main_emb))
 
     sum_mem = ConversationSummaryMemory(
         ai_prefix = "LibertyAI",
@@ -43,7 +41,7 @@ def initialize_chatbot(**kwargs: Any) -> LibertyChain:
         memory = conv_mem,
         llm = main_llm,
         mrkl = get_zero_shot_agent( main_llm ),
-        verbose = True,
+        #verbose = True,
         user_name = kwargs['name'],
         user_mail = kwargs['email'],
         embeddings = main_emb,

@@ -17,7 +17,7 @@ Summary:
 Current conversation:
 {history}
 Human: {input}
-{last_output}"""
+LibertyAI:"""
 
 PROMPT = PromptTemplate(
     input_variables = [
@@ -28,7 +28,6 @@ PROMPT = PromptTemplate(
         "history",
         "summary",
         "input",
-        "last_output",
         "context",
     ],
     template=_DEFAULT_TEMPLATE
