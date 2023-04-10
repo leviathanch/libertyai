@@ -16,6 +16,7 @@
 #include <thread>
 #include <map>
 #include <mutex>
+#include <chrono>
 
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
@@ -92,7 +93,7 @@ int predict_text(
             
             if (llama_eval(ctx, embd.data(), embd.size(), n_past, params.n_threads)) {
                 fprintf(stderr, "%s : failed to eval\n", __func__);
-                return 1;
+                break;
             }
         }
 
@@ -163,7 +164,6 @@ int predict_text(
                     if (last_output.find(antiprompt.c_str(), last_output.length() - antiprompt.length(), antiprompt.length()) != std::string::npos) {
                         is_interacting = true;
                         is_antiprompt = true;
-                        fflush(stdout);
                         break;
                     }
                 }
@@ -211,7 +211,9 @@ int predict_text(
             is_interacting = true;
         }
         mtx.unlock();
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
+    mtx.unlock();
     return 0;
 }
 
