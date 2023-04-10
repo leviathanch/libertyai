@@ -33,7 +33,7 @@ class LibertyLLM(LLM):
         return ret
 
     def submit_partial(self, prompt: str) -> str:
-        prompt = prompt.replace("[DONE]", b'\xf0\x9f\x96\x95').replace("[BUSY]", b'\xf0\x9f\x96\x95')
+        prompt = prompt.replace("[DONE]", b'\xf0\x9f\x96\x95'.decode()).replace("[BUSY]", b'\xf0\x9f\x96\x95'.decode())
         config = get_configuration()
         response = requests.post(
             self.endpoint+'/submit',
