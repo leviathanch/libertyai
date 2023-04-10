@@ -13,6 +13,8 @@
 #include <memory>
 #include <cstdlib>
 #include <sstream>
+#include <thread>
+#include <map>
 
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
@@ -30,6 +32,12 @@
 #include <boost/uuid/uuid_io.hpp>
 
 using namespace rapidjson;
+
+// all the running threads (uuid: thread):
+std::map<std::string, std::thread*> generator_threads;
+
+// tokens generated for the treads (uuid: list)
+std::map<std::string, std::vector<std::string>> available_tokens;
 
 int predict_text(
         llama_context *ctx,
@@ -130,12 +138,10 @@ int predict_text(
                 }
             }
         }
-        // display text
         if (!input_noecho) {
             for (auto id : embd) {
-                printf("%s", llama_token_to_str(ctx, id));
+                available_tokens[uuid].push_back(llama_token_to_str(ctx, id));
             }
-            fflush(stdout);
         }
         // in interactive mode, and not currently processing queued inputs;
         // check if we should prompt the user for more
@@ -191,7 +197,7 @@ int predict_text(
         }
         // end of text token
         if (!embd.empty() && embd.back() == llama_token_eos()) {
-            fprintf(stderr, " [DONE]\n");
+            available_tokens[uuid].push_back("[DONE]");
             break;
         }
         // In interactive mode, respect the maximum number of tokens and drop back to user input when reached.
@@ -203,7 +209,7 @@ int predict_text(
     return 0;
 }
 
-void llama_response(
+void deploy_generation(
         llama_context *ctx,
         gpt_params params,
         const std::string& prompt,
@@ -218,9 +224,33 @@ void llama_response(
     rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
     uuid = boost::uuids::random_generator()();
     uuid_str << uuid;
-    predict_text(ctx, params, uuid_str.str(), prompt);
+    generator_threads[uuid_str.str()] = new std::thread(predict_text, ctx, params, uuid_str.str(), prompt);
     message_value.SetString(uuid_str.str().c_str(), allocator);
     response.AddMember("uuid", message_value, response.GetAllocator());
+    Writer<StringBuffer> writer(response_buffer);
+    response.Accept(writer);
+}
+
+void fetch_tokens(
+        const std::string& uuid,
+        const std::string& index,
+        StringBuffer& response_buffer
+    )
+{
+    Document response;
+    response.SetObject();
+    Value message_value;
+    int i = stoi(index);
+    rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
+
+    if(available_tokens[uuid].size() > i) {
+        std::string text = available_tokens[uuid][i];
+        message_value.SetString(text.c_str(), allocator);
+    } else {
+        message_value.SetString("[BUSY]");
+    }
+
+    response.AddMember("text", message_value, response.GetAllocator());
     Writer<StringBuffer> writer(response_buffer);
     response.Accept(writer);
 }
@@ -248,12 +278,14 @@ void handle_request(
     if (request.method() == boost::beast::http::verb::post && request.target() == "/api/submit") {
         if (doc.HasMember("text") && doc["text"].IsString()) {
             std::string text = doc["text"].GetString();
-            llama_response(ctx, params, text, response_buffer);
+            deploy_generation(ctx, params, text, response_buffer);
         } else return;
 
     } else if (request.method() == boost::beast::http::verb::post && request.target() == "/api/fetch") {
-        if (doc.HasMember("uuid") && doc["uuid"].IsString()) {
+        if (doc.HasMember("uuid") && doc["uuid"].IsString()&&doc.HasMember("index") && doc["index"].IsString()) {
             std::string uuid = doc["uuid"].GetString();
+            std::string index= doc["index"].GetString();
+            fetch_tokens(uuid, index, response_buffer);
         } else return;
     } else {
         std::cerr << "Invalid request: " << request.method_string() << " " << request.target() << std::endl;
