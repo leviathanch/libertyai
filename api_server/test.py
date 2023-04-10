@@ -3,7 +3,7 @@ import time
 import sys
 
 response = requests.post(
-    "http://localhost:8080/api/submit",
+    "http://localhost:8080/api/completion/submit",
     json = { 'text' : "Taxation is theft because",},
 )
 
@@ -16,7 +16,7 @@ if 'uuid' in reply:
     i = 0
     while text != "[DONE]":
         response = requests.post(
-            "http://localhost:8080/api/fetch",
+            "http://localhost:8080/api/completion/fetch",
             json = {'uuid' : uuid, 'index': str(i) },
         )
         reply = response.json()

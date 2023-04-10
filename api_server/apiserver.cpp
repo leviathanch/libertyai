@@ -214,6 +214,7 @@ int predict_text(
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     mtx.unlock();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     return 0;
 }
 
@@ -283,13 +284,13 @@ void handle_request(
     rapidjson::Document doc;
     doc.Parse(body_str.c_str());
     // Process the request based on the requested path
-    if (request.method() == boost::beast::http::verb::post && request.target() == "/api/submit") {
+    if (request.method() == boost::beast::http::verb::post && request.target() == "/api/completion/submit") {
         if (doc.HasMember("text") && doc["text"].IsString()) {
             std::string text = doc["text"].GetString();
             deploy_generation(ctx, params, text, response_buffer);
         } else return;
 
-    } else if (request.method() == boost::beast::http::verb::post && request.target() == "/api/fetch") {
+    } else if (request.method() == boost::beast::http::verb::post && request.target() == "/api/completion/fetch") {
         if (doc.HasMember("uuid") && doc["uuid"].IsString()&&doc.HasMember("index") && doc["index"].IsString()) {
             std::string uuid = doc["uuid"].GetString();
             std::string index= doc["index"].GetString();
