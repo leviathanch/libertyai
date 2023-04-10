@@ -76,6 +76,7 @@ int predict_text(
     std::fill(last_n_tokens.begin(), last_n_tokens.end(), 0);
 
     while (n_remain) {
+        mtx.lock();
         // predict
         if (embd.size() > 0) {
             // infinite text generation via context swapping
@@ -88,12 +89,11 @@ int predict_text(
                 // insert n_left/2 tokens at the start of embd from last_n_tokens
                 embd.insert(embd.begin(), last_n_tokens.begin() + n_ctx - n_left/2 - embd.size(), last_n_tokens.end() - embd.size());
             }
-            mtx.lock();
+            
             if (llama_eval(ctx, embd.data(), embd.size(), n_past, params.n_threads)) {
                 fprintf(stderr, "%s : failed to eval\n", __func__);
                 return 1;
             }
-            mtx.unlock();
         }
 
         n_past += embd.size();
@@ -117,7 +117,7 @@ int predict_text(
             last_n_tokens.erase(last_n_tokens.begin());
             last_n_tokens.push_back(id);
             // replace end of text token with newline token when in interactive mode
-            if (id == llama_token_eos() && params.interactive && !params.instruct) {
+            if (id == llama_token_eos() && params.interactive) {
                 id = llama_token_newline.front();
                 if (params.antiprompt.size() != 0) {
                     // tokenize and inject first reverse prompt
@@ -210,6 +210,7 @@ int predict_text(
             n_remain = params.n_predict;
             is_interacting = true;
         }
+        mtx.unlock();
     }
     return 0;
 }
@@ -318,7 +319,10 @@ void print_sysinfo(gpt_params& params) {
 int main(int argc, char ** argv) {
     llama_context *ctx;
     gpt_params params;
-    //params.model = "/home/leviathan/ggml-model-f16-quant.bin";
+    if ( params.model == "" ) {
+        return 1;
+    }
+    //= "/home/leviathan/ggml-model-f16-quant.bin";
 
     if (gpt_params_parse(argc, argv, params) == false) {
         return 1;
