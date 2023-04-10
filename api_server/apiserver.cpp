@@ -15,6 +15,7 @@
 #include <sstream>
 #include <thread>
 #include <map>
+#include <mutex>
 
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
@@ -32,6 +33,8 @@
 #include <boost/uuid/uuid_io.hpp>
 
 using namespace rapidjson;
+
+std::mutex mtx;
 
 // all the running threads (uuid: thread):
 std::map<std::string, std::thread*> generator_threads;
@@ -85,10 +88,12 @@ int predict_text(
                 // insert n_left/2 tokens at the start of embd from last_n_tokens
                 embd.insert(embd.begin(), last_n_tokens.begin() + n_ctx - n_left/2 - embd.size(), last_n_tokens.end() - embd.size());
             }
+            mtx.lock();
             if (llama_eval(ctx, embd.data(), embd.size(), n_past, params.n_threads)) {
                 fprintf(stderr, "%s : failed to eval\n", __func__);
                 return 1;
             }
+            mtx.unlock();
         }
 
         n_past += embd.size();
@@ -243,7 +248,7 @@ void fetch_tokens(
     int i = stoi(index);
     rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
 
-    if(available_tokens[uuid].size() > i) {
+    if( available_tokens[uuid].size() > i ) {
         std::string text = available_tokens[uuid][i];
         message_value.SetString(text.c_str(), allocator);
     } else {

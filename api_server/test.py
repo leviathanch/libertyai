@@ -21,10 +21,13 @@ if 'uuid' in reply:
         )
         reply = response.json()
         text = reply['text']
-        if text != "[BUSY]":
-            i += 1
+        if text == "[BUSY]":
+            time.sleep(0.1)
+            continue
+
+        i += 1
+        if text != "[DONE]":
             sys.stdout.write(text)
-
-        time.sleep(0.1)
-
-    print("\n\nDONE")
+            sys.stdout.flush()
+    
+    print("\n\n")
