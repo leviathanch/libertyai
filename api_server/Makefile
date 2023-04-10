@@ -9,9 +9,9 @@ $(info I LDFLAGS: $(LDFLAGS))
 all: apiserver
 
 apiserver:
-	cd llama.cpp && Makefile && cd ..
+	cd llama.cpp && make && cd ..
 	$(CXX) $(CXXFLAGS) apiserver.cpp llama.cpp/ggml.o llama.cpp/llama.o llama.cpp/common.o -o apiserver $(LDFLAGS)
 
 clean:
 	rm -f apiserver
-	make -f llama.cpp/Makefile clean
+	cd llama.cpp && make clean && cd ..
