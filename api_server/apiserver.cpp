@@ -289,7 +289,6 @@ void handle_request(
             std::string text = doc["text"].GetString();
             deploy_generation(ctx, params, text, response_buffer);
         } else return;
-
     } else if (request.method() == boost::beast::http::verb::post && request.target() == "/api/completion/fetch") {
         if (doc.HasMember("uuid") && doc["uuid"].IsString()&&doc.HasMember("index") && doc["index"].IsString()) {
             std::string uuid = doc["uuid"].GetString();
@@ -325,7 +324,6 @@ int main(int argc, char ** argv) {
     if ( params.model == "" ) {
         return 1;
     }
-    //= "/home/leviathan/ggml-model-f16-quant.bin";
 
     if (gpt_params_parse(argc, argv, params) == false) {
         return 1;
@@ -339,7 +337,7 @@ int main(int argc, char ** argv) {
     // load the model
     ctx = load_model(params);
     if (ctx == NULL) {
-        fprintf(stderr, "%s: error: failed to load model '%s'\n", __func__, params.model.c_str());
+        fprintf(stderr, "%s: error: failed to load model '%s'\nUse -m for specifying your own model path!\n", __func__, params.model.c_str());
         return 1;
     }
 
