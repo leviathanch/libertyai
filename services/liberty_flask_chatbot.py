@@ -199,31 +199,30 @@ def chatbot_start_generation():
             emb = emb,
         )
 
-    msghash = active_bots[current_user.id].start_generations(message)
+    uuid = active_bots[current_user.id].start_generations(message)
 
-    return msghash
+    return uuid
 
 @app.route("/chatbot/get_part")
 @login_required
 def chatbot_get_part():
     try:
-        msghash = request.args.get('id')
+        uuid = request.args.get('uuid')
+        index = request.args.get('index')
     except:
         return "[DONE]"
 
     if current_user.id not in active_bots:
         return "[DONE]"
 
-    next_paragraph = active_bots[current_user.id].get_paragraph(msghash)
+    token = active_bots[current_user.id].get_part(uuid, int(index))
 
-    return next_paragraph
+    return token
 
 
 def liberty_llm():
     return LibertyLLM(
         endpoint = config.get('API', 'GENERATION_ENDPOINT'),
-        temperature = 0.7,
-        max_tokens = 10,
     )
 
 def liberty_embedding():

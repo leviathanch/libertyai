@@ -1,18 +1,23 @@
-const retrievalPromise = function (hash) {
+const retrievalPromise = function (uuid, index) {
     return new Promise(
         function (resolve, reject) {
             var http = new XMLHttpRequest();
-            http.open("GET", "/chatbot/get_part?id="+hash, true);
+            http.open("GET", "/chatbot/get_part?uuid="+uuid+"&index="+index, true);
             http.setRequestHeader("Content-type", "application/json; charset=utf-8");
             http.onload = function () {
                 var text = this.responseText
-                self.postMessage(text);
-                if ( text !== "[DONE]") {
-                    retrievalPromise(hash).then(function (state) {
-                        setTimeout(resolve, 50, "iterating");
+                if ( text === "[BUSY]") {
+                    retrievalPromise(uuid, index ).then(function (state) {
+                        setTimeout(resolve, 2000, "iterating");
+                    });
+                } else if ( text !== "[DONE]") {
+                    self.postMessage(text);
+                    retrievalPromise(uuid, index+1 ).then(function (state) {
+                        setTimeout(resolve, 500, "iterating");
                     });
                 } else {
-                    setTimeout(resolve, 50, "done");
+                    self.postMessage(text);
+                    setTimeout(resolve, 500, "done");
                 }
             };
             http.send();
@@ -21,7 +26,7 @@ const retrievalPromise = function (hash) {
 };
 
 self.onmessage = (event) => {
-    retrievalPromise(event.data).then(function (state) {
+    retrievalPromise(event.data, 0).then(function (state) {
         this.close();
     });
 };
