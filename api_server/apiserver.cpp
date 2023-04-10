@@ -52,10 +52,10 @@ int predict_text(
 {
     bool is_interacting = false;
     bool is_antiprompt = false;
-    bool input_noecho  = false;
+    bool input_noecho  = true;
 
     int n_past     = 0;
-    int n_remain   = params.n_predict;
+    int n_remain   = -1;
     int n_consumed = 0;
 
     const int n_ctx = llama_n_ctx(ctx);
@@ -90,9 +90,10 @@ int predict_text(
                 // insert n_left/2 tokens at the start of embd from last_n_tokens
                 embd.insert(embd.begin(), last_n_tokens.begin() + n_ctx - n_left/2 - embd.size(), last_n_tokens.end() - embd.size());
             }
-            
             if (llama_eval(ctx, embd.data(), embd.size(), n_past, params.n_threads)) {
                 fprintf(stderr, "%s : failed to eval\n", __func__);
+                mtx.unlock();
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 break;
             }
         }
@@ -140,6 +141,8 @@ int predict_text(
                 last_n_tokens.push_back(embd_inp[n_consumed]);
                 ++n_consumed;
                 if ((int) embd.size() >= params.n_batch) {
+                    mtx.unlock();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
                     break;
                 }
             }
@@ -164,6 +167,8 @@ int predict_text(
                     if (last_output.find(antiprompt.c_str(), last_output.length() - antiprompt.length(), antiprompt.length()) != std::string::npos) {
                         is_interacting = true;
                         is_antiprompt = true;
+                        mtx.unlock();
+                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
                         break;
                     }
                 }
@@ -203,6 +208,8 @@ int predict_text(
         // end of text token
         if (!embd.empty() && embd.back() == llama_token_eos()) {
             available_tokens[uuid].push_back("[DONE]");
+            mtx.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
             break;
         }
         // In interactive mode, respect the maximum number of tokens and drop back to user input when reached.
@@ -213,8 +220,6 @@ int predict_text(
         mtx.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-    mtx.unlock();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     return 0;
 }
 
@@ -304,11 +309,12 @@ void handle_request(
 llama_context *load_model(gpt_params& params) {
     llama_context * ctx;
     auto lparams = llama_context_default_params();
-    lparams.n_ctx      = params.n_ctx;
-    lparams.n_parts    = params.n_parts;
-    lparams.seed       = (params.seed <= 0) ? time(NULL) : params.seed;
-    lparams.f16_kv     = params.memory_f16;
-    lparams.use_mlock  = params.use_mlock;
+    lparams.n_ctx      = 512;
+    //lparams.n_ctx      = 2048;
+    lparams.n_parts    = 1;
+    lparams.seed       = time(NULL);
+    lparams.f16_kv     = 2;
+    lparams.use_mlock  = 0;
     ctx = llama_init_from_file(params.model.c_str(), lparams);
     return ctx;
 }
@@ -327,11 +333,6 @@ int main(int argc, char ** argv) {
 
     if (gpt_params_parse(argc, argv, params) == false) {
         return 1;
-    }
-
-    if (params.n_ctx > 2048) {
-        fprintf(stderr, "%s: warning: model does not support context sizes greater than 2048 tokens (%d specified);"
-                "expect poor results\n", __func__, params.n_ctx);
     }
 
     // load the model
