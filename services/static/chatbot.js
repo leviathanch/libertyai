@@ -118,7 +118,7 @@ function startTypeWriterJob(hash, workerObject) {
                 workerObject.classList.remove("blinkyChat");
                 workerObject.classList.add("normalChat");
             } else {
-                setTimeout(recursiveQueueJob, 500, hash, workerObject);
+                setTimeout(recursiveQueueJob, 100, hash, workerObject);
             }
         });
     }

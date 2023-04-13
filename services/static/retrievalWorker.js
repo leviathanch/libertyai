@@ -8,16 +8,16 @@ const retrievalPromise = function (uuid, index) {
                 var text = this.responseText
                 if ( text === "[BUSY]") {
                     retrievalPromise(uuid, index ).then(function (state) {
-                        setTimeout(resolve, 2000, "iterating");
+                        setTimeout(resolve, 1000, "iterating");
                     });
                 } else if ( text !== "[DONE]") {
                     self.postMessage(text);
                     retrievalPromise(uuid, index+1 ).then(function (state) {
-                        setTimeout(resolve, 500, "iterating");
+                        setTimeout(resolve, 200, "iterating");
                     });
                 } else {
                     self.postMessage(text);
-                    setTimeout(resolve, 500, "done");
+                    setTimeout(resolve, 200, "done");
                 }
             };
             http.send();
