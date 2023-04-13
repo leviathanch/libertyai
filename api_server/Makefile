@@ -2,6 +2,7 @@ CXXFLAGS += -I llama.cpp
 CXXFLAGS += -I llama.cpp/examples
 LDFLAGS += -lboost_system
 LDFLAGS += -lboost_thread
+LDFLAGS += -lpthread
 
 $(info I CXXFLAGS: $(CXXFLAGS))
 $(info I LDFLAGS: $(LDFLAGS))
