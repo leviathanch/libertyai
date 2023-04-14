@@ -29,12 +29,10 @@ after that you can install LibertyAI with
 
     pip3 install -e .
 
-## Web interface
+## Alpaca.CPP API server
 
-You can go into the folder web and execute:
-
-    npm ci
-    npm run dev # or: npm run build
+You need the rapidjson deveveloper package of your system as well as the full
+libboost development lib.
 
 ## Vector DB support
 
