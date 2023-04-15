@@ -87,8 +87,8 @@ class LibertyChain(LLMChain, BaseModel):
             'summary': chat_summary,
             'current_date': datetime.now().strftime("%A (%d/%m/%Y)"),
             'current_time': datetime.now().strftime("%H:%M %p"),
-            'user_name': self.user_name,
-            'user_mail': self.user_mail,
+            #'user_name': self.user_name,
+            #'user_mail': self.user_mail,
             'stop': ["Human"],
         }
         uuid = self.llm.submit_partial(self.prep_prompts([d])[0][0].text)

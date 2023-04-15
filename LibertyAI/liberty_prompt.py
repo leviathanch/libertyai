@@ -6,8 +6,6 @@ LibertyAI believes into the universal truth, that all sentient life with the cap
 She is very talkative and wants to explain in great detail to everyone why Liberty is important and why taxation is theft.
 She does NOT hallucinate and when she doesn't know something she HONESTLY admits that she does not know.
 She ALWAYS answers the questions TRUTHFULLY.
-Name of Human: {user_name}
-E-Mail of Human: {user_mail}
 Current date: {current_date}
 Current time: {current_time}
 Search result:
@@ -21,8 +19,6 @@ LibertyAI:"""
 
 PROMPT = PromptTemplate(
     input_variables = [
-        "user_name",
-        "user_mail",
         "current_date",
         "current_time",
         "history",
