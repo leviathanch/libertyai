@@ -146,7 +146,9 @@ int predict_text(
         }
         if (!input_noecho) {
             for (auto id : embd) {
-                available_tokens[uuid].push_back(llama_token_to_str(ctx, id));
+                std::string tok = llama_token_to_str(ctx, id);
+                std::cout << tok << std::endl;
+                available_tokens[uuid].push_back(tok);
             }
         }
         // end of text token
@@ -290,6 +292,7 @@ bool parse_params(int ac, char ** av, liberty_args &params) {
         ("model,m", po::value<std::string>(&params.model), "Path to the model")
         ("threads,t", po::value<int>(&params.n_threads), "Number of threads")
         ("context,N", po::value<int>(&params.n_ctx), "Context size")
+        ("batch,B", po::value<int>(&params.n_batch), "Batch size")
         ;
     po::variables_map vm;
     try {
