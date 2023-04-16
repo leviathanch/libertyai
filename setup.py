@@ -37,6 +37,7 @@ setup(
         'flask_migrate',
         'flask_script',
         'langchain',
+        'langdetect',
         'pgvector',
         'psycopg2',
         'gevent',
