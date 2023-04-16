@@ -101,20 +101,26 @@ class LibertyChain(LLMChain, BaseModel):
                 self.prompt = EN_PROMPT
 
         uuid = self.llm.submit_partial(self.prep_prompts([d])[0][0].text, stop = ["Human:"])
+        self.hash_table[uuid] = {
+            'message': message,
+            'reply': ""
+        }
         return uuid
 
     def get_part(self, uuid, index):
         text = self.llm.get_partial(uuid, index)
-        return text
-'''
         if text == "[DONE]":
             self.memory.save_context(
-                inputs = {self.human_prefix: original.strip()},
+                inputs = {self.human_prefix: self.hash_table[uuid]['message'].strip()},
                 outputs = {self.ai_prefix: self.hash_table[uuid]['reply'].strip()}
             )
             self.summary.save_context(
-                inputs = {self.human_prefix: original.strip()},
+                inputs = {self.human_prefix: self.hash_table[uuid]['message'].strip()},
                 outputs = {self.ai_prefix: self.hash_table[uuid]['reply'].strip()}
             )
+            del elf.hash_table[uuid]
+        else:
+            self.hash_table[uuid]['reply'] += text
 
+        return text
 '''
