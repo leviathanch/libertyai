@@ -11,10 +11,10 @@ $(info I LDFLAGS: $(LDFLAGS))
 
 all: apiserver
 
-llama.cpp:
+llama:
 	cd llama.cpp && make LDFLAGS="$(LDFLAGS)" LLAMA_OPENBLAS=1 && cd ..
 
-apiserver: llama.cpp apiserver.cpp
+apiserver: llama apiserver.cpp
 	$(CXX) $(CXXFLAGS) apiserver.cpp llama.cpp/ggml.o llama.cpp/llama.o llama.cpp/common.o -o apiserver $(LDFLAGS)
 
 clean:
