@@ -46,6 +46,8 @@ std::map<std::string, std::thread*> generator_threads;
 // tokens generated for the treads (uuid: list)
 std::map<std::string, std::vector<std::string>> available_tokens;
 
+std::vector<std::string> last_partial_stops;
+
 struct liberty_args {
     std::string model;
     std::vector<std::string> stop;
@@ -61,7 +63,22 @@ struct liberty_args {
 
 bool contains_stop(std::string text, std::vector<std::string> tokens) {
     for(auto token: tokens) {
+        if (text.size() < token.size()) {
+            continue;
+        }
         if( text.find(token) != std::string::npos ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool is_partial_stop(std::string text, std::vector<std::string> tokens) {
+    for(auto token: tokens) {
+        if (token.size() < text.size()) {
+            continue;
+        }
+        if( token.find(text) != std::string::npos ) {
             return true;
         }
     }
@@ -149,7 +166,15 @@ int predict_text(
             for (auto id : embd) {
                 std::string tok = llama_token_to_str(ctx, id);
                 generated_text += tok;
-                available_tokens[uuid].push_back(tok);
+                if(is_partial_stop(tok, params.stop)) {
+                    last_partial_stops.push_back(tok);
+                } else {
+                    for(auto st: last_partial_stops) {
+                        available_tokens[uuid].push_back(st);
+                    }
+                    last_partial_stops.clear();
+                    available_tokens[uuid].push_back(tok);
+                }
             }
             if(contains_stop(generated_text, params.stop)) {
                 available_tokens[uuid].push_back("[DONE]");
