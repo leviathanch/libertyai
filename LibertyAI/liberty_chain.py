@@ -89,9 +89,8 @@ class LibertyChain(LLMChain, BaseModel):
             'current_time': datetime.now().strftime("%H:%M %p"),
             #'user_name': self.user_name,
             #'user_mail': self.user_mail,
-            'stop': ["Human"],
         }
-        uuid = self.llm.submit_partial(self.prep_prompts([d])[0][0].text)
+        uuid = self.llm.submit_partial(self.prep_prompts([d])[0][0].text, stop = ["Human:"])
         return uuid
 
     def get_part(self, uuid, index):

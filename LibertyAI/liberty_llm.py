@@ -17,7 +17,7 @@ class LibertyLLM(LLM):
         return "liberty"
 
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
-        uuid = self.submit_partial(prompt)
+        uuid = self.submit_partial(prompt, stop)
         ret = ""
         text = ""
         i = 0
@@ -32,12 +32,16 @@ class LibertyLLM(LLM):
 
         return ret
 
-    def submit_partial(self, prompt: str) -> str:
+    def submit_partial(self, prompt: str, stop: Optional[List[str]] = None) -> str:
         prompt = prompt.replace("[DONE]", b'\xf0\x9f\x96\x95'.decode()).replace("[BUSY]", b'\xf0\x9f\x96\x95'.decode())
         config = get_configuration()
+        jd = {'text' : prompt,}
+        if stop:
+            jd['stop'] = stop
+
         response = requests.post(
             self.endpoint+'/submit',
-            json = {'text' : prompt},
+            json = jd,
         )
         reply = response.json()
         if 'uuid' in reply:

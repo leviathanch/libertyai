@@ -59,13 +59,24 @@ struct liberty_args {
     int32_t n_ctx;
 };
 
+bool contains_stop(std::string text, std::vector<std::string> tokens) {
+    for(auto token: tokens) {
+        if( text.find(token) != std::string::npos ) {
+            return true;
+        }
+    }
+    return false;
+}
+
 int predict_text(
         llama_context *ctx,
-        liberty_args& params,
+        liberty_args params,
         const std::string& uuid,
         const std::string& prompt
     )
 {
+    std::string generated_text = "";
+
     bool input_noecho  = true;
     int n_past     = 0;
     int n_consumed = 0;
@@ -78,9 +89,6 @@ int predict_text(
         return 1;
     }
     int n_keep = (int)embd_inp.size();
-
-    auto llama_token_newline = ::llama_tokenize(ctx, "\n", false);
-
     std::vector<llama_token> embd;
     std::vector<llama_token> last_n_tokens(n_ctx);
     std::fill(last_n_tokens.begin(), last_n_tokens.end(), 0);
@@ -140,12 +148,18 @@ int predict_text(
         if (!input_noecho) {
             for (auto id : embd) {
                 std::string tok = llama_token_to_str(ctx, id);
-                std::cout << tok << std::endl;
+                generated_text += tok;
                 available_tokens[uuid].push_back(tok);
+            }
+            if(contains_stop(generated_text, params.stop)) {
+                available_tokens[uuid].push_back("[DONE]");
+                mtx.unlock();
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                break;
             }
         }
         // end of text token
-        if (!embd.empty() && embd.back() == llama_token_eos()) {
+        if ( !embd.empty() && embd.back() == llama_token_eos() ) {
             available_tokens[uuid].push_back("[DONE]");
             mtx.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -159,7 +173,7 @@ int predict_text(
 
 void deploy_generation(
         llama_context *ctx,
-        liberty_args& params,
+        liberty_args params,
         std::string& prompt,
         StringBuffer& response_buffer
     )
@@ -172,7 +186,7 @@ void deploy_generation(
     rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
     uuid = boost::uuids::random_generator()();
     uuid_str << uuid;
-    generator_threads[uuid_str.str()] = new std::thread(predict_text, ctx, std::ref(params), uuid_str.str(), prompt);
+    generator_threads[uuid_str.str()] = new std::thread(predict_text, ctx, params, uuid_str.str(), prompt);
     message_value.SetString(uuid_str.str().c_str(), allocator);
     response.AddMember("uuid", message_value, response.GetAllocator());
     Writer<StringBuffer> writer(response_buffer);
@@ -229,17 +243,16 @@ void handle_request(
             new_params.n_threads = params.n_threads;
             new_params.model = params.model;
             new_params.top_k = (doc.HasMember("top_k") && doc["top_k"].IsString()) ? std::stoi(doc["top_k"].GetString()) : params.top_k;
-            new_params.repeat_last_n = (doc.HasMember("repeat_last_n") && doc["repeat_last_n"].IsString()) ? std::stoi(doc["repeat_last_n"].GetString()) : params.repeat_last_n;
             new_params.top_p = (doc.HasMember("top_p") && doc["top_p"].IsString()) ? std::stof(doc["top_p"].GetString()) : params.top_p;
+            new_params.repeat_last_n = (doc.HasMember("repeat_last_n") && doc["repeat_last_n"].IsString()) ? std::stoi(doc["repeat_last_n"].GetString()) : params.repeat_last_n;
             new_params.temp = (doc.HasMember("temp") && doc["temp"].IsString()) ? std::stof(doc["temp"].GetString()) : params.temp;
             new_params.repeat_penalty = (doc.HasMember("repeat_penalty") && doc["repeat_penalty"].IsString()) ? std::stof(doc["repeat_penalty"].GetString()) : params.repeat_penalty;
             if (doc.HasMember("stop") && doc["stop"].IsArray()) {
                 for (auto& v : doc["stop"].GetArray()) {
                     if(v.IsString()) {
-                        printf(v.GetString());
+                        new_params.stop.push_back(v.GetString());
                     }
                 }
-                //new_params.stop =  doc["stop"].GetArray();
             }
             new_params.n_batch = params.n_batch;
 
