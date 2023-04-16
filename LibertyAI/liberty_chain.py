@@ -21,6 +21,7 @@ from pydantic import (
 
 from datetime import datetime
 from sentence_transformers import util
+from langdetect import detect
 
 from langchain.chains.llm import LLMChain
 from langchain.memory.buffer import ConversationBufferMemory
@@ -30,7 +31,7 @@ from langchain.schema import BaseMemory
 from langchain.agents.agent import AgentExecutor
 from langchain.vectorstores.pgvector import PGVector
 
-from LibertyAI.liberty_prompt import PROMPT
+from LibertyAI.liberty_prompt import EN_PROMPT, DE_PROMPT
 from LibertyAI.liberty_llm import LibertyLLM
 from LibertyAI.liberty_embedding import LibertyEmbeddings
 
@@ -90,6 +91,15 @@ class LibertyChain(LLMChain, BaseModel):
             #'user_name': self.user_name,
             #'user_mail': self.user_mail,
         }
+
+        match detect(message):
+            case 'de':
+                self.prompt = DE_PROMPT
+            case 'en':
+                self.prompt = EN_PROMPT
+            case _:
+                self.prompt = EN_PROMPT
+
         uuid = self.llm.submit_partial(self.prep_prompts([d])[0][0].text, stop = ["Human:"])
         return uuid
 
