@@ -48,10 +48,9 @@ std::map<std::string, std::vector<std::string>> available_tokens;
 
 struct liberty_args {
     std::string model;
-    std::vector<std::string> antiprompt;
+    std::vector<std::string> stop;
     int n_threads;
     int n_batch;
-    bool ignore_eos;
     float repeat_penalty;
     int32_t repeat_last_n;
     float temp;
@@ -67,10 +66,7 @@ int predict_text(
         const std::string& prompt
     )
 {
-    bool is_interacting = false;
-    bool is_antiprompt = false;
     bool input_noecho  = true;
-
     int n_past     = 0;
     int n_consumed = 0;
 
@@ -114,13 +110,10 @@ int predict_text(
         n_past += embd.size();
         embd.clear();
 
-        if ((int) embd_inp.size() <= n_consumed && !is_interacting) {
+        if ((int) embd_inp.size() <= n_consumed) {
             // out of user input, sample next token
             llama_token id = 0;
             auto logits = llama_get_logits(ctx);
-            if (params.ignore_eos) {
-                logits[llama_token_eos()] = 0;
-            }
             id = llama_sample_top_p_top_k(ctx,
                     last_n_tokens.data() + n_ctx - params.repeat_last_n,
                     params.repeat_last_n, params.top_k, params.top_p, params.temp, params.repeat_penalty);
@@ -240,7 +233,14 @@ void handle_request(
             new_params.top_p = (doc.HasMember("top_p") && doc["top_p"].IsString()) ? std::stof(doc["top_p"].GetString()) : params.top_p;
             new_params.temp = (doc.HasMember("temp") && doc["temp"].IsString()) ? std::stof(doc["temp"].GetString()) : params.temp;
             new_params.repeat_penalty = (doc.HasMember("repeat_penalty") && doc["repeat_penalty"].IsString()) ? std::stof(doc["repeat_penalty"].GetString()) : params.repeat_penalty;
-            new_params.ignore_eos = false;
+            if (doc.HasMember("stop") && doc["stop"].IsArray()) {
+                for (auto& v : doc["stop"].GetArray()) {
+                    if(v.IsString()) {
+                        printf(v.GetString());
+                    }
+                }
+                //new_params.stop =  doc["stop"].GetArray();
+            }
             new_params.n_batch = params.n_batch;
 
             std::string text = doc["text"].GetString();
