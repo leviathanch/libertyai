@@ -33,7 +33,10 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
+#include <boost/program_options.hpp>
+
 using namespace rapidjson;
+namespace po = boost::program_options;
 
 std::mutex mtx;
 
@@ -43,9 +46,23 @@ std::map<std::string, std::thread*> generator_threads;
 // tokens generated for the treads (uuid: list)
 std::map<std::string, std::vector<std::string>> available_tokens;
 
+struct liberty_args {
+    std::string model;
+    std::vector<std::string> antiprompt;
+    int n_threads;
+    int n_batch;
+    bool ignore_eos;
+    float repeat_penalty;
+    int32_t repeat_last_n;
+    float temp;
+    float top_p;
+    int32_t top_k;
+    int32_t n_ctx;
+};
+
 int predict_text(
         llama_context *ctx,
-        gpt_params params,
+        liberty_args& params,
         const std::string& uuid,
         const std::string& prompt
     )
@@ -55,7 +72,6 @@ int predict_text(
     bool input_noecho  = true;
 
     int n_past     = 0;
-    int n_remain   = -1;
     int n_consumed = 0;
 
     const int n_ctx = llama_n_ctx(ctx);
@@ -65,10 +81,7 @@ int predict_text(
         fprintf(stderr, "%s: error: prompt is too long (%d tokens, max %d)\n", __func__, (int) embd_inp.size(), n_ctx - 4);
         return 1;
     }
-    // number of tokens to keep when resetting context
-    if (params.n_keep < 0 || params.n_keep > (int)embd_inp.size()) {
-        params.n_keep = (int)embd_inp.size();
-    }
+    int n_keep = (int)embd_inp.size();
 
     auto llama_token_newline = ::llama_tokenize(ctx, "\n", false);
 
@@ -76,7 +89,7 @@ int predict_text(
     std::vector<llama_token> last_n_tokens(n_ctx);
     std::fill(last_n_tokens.begin(), last_n_tokens.end(), 0);
 
-    while (n_remain) {
+    while (true) {
         mtx.lock();
         // predict
         if (embd.size() > 0) {
@@ -85,8 +98,8 @@ int predict_text(
             // - take the n_keep first tokens from the original prompt (via n_past)
             // - take half of the last (n_ctx - n_keep) tokens and recompute the logits in a batch
             if (n_past + (int) embd.size() > n_ctx) {
-                const int n_left = n_past - params.n_keep;
-                n_past = params.n_keep;
+                const int n_left = n_past - n_keep;
+                n_past = n_keep;
                 // insert n_left/2 tokens at the start of embd from last_n_tokens
                 embd.insert(embd.begin(), last_n_tokens.begin() + n_ctx - n_left/2 - embd.size(), last_n_tokens.end() - embd.size());
             }
@@ -103,11 +116,6 @@ int predict_text(
 
         if ((int) embd_inp.size() <= n_consumed && !is_interacting) {
             // out of user input, sample next token
-            const int32_t top_k          = params.top_k;
-            const float   top_p          = params.top_p;
-            const float   temp           = params.temp;
-            const float   repeat_penalty = params.repeat_penalty;
-
             llama_token id = 0;
             auto logits = llama_get_logits(ctx);
             if (params.ignore_eos) {
@@ -115,24 +123,13 @@ int predict_text(
             }
             id = llama_sample_top_p_top_k(ctx,
                     last_n_tokens.data() + n_ctx - params.repeat_last_n,
-                    params.repeat_last_n, top_k, top_p, temp, repeat_penalty);
+                    params.repeat_last_n, params.top_k, params.top_p, params.temp, params.repeat_penalty);
             last_n_tokens.erase(last_n_tokens.begin());
             last_n_tokens.push_back(id);
-            // replace end of text token with newline token when in interactive mode
-            if (id == llama_token_eos() && params.interactive) {
-                id = llama_token_newline.front();
-                if (params.antiprompt.size() != 0) {
-                    // tokenize and inject first reverse prompt
-                    const auto first_antiprompt = ::llama_tokenize(ctx, params.antiprompt.front(), false);
-                    embd_inp.insert(embd_inp.end(), first_antiprompt.begin(), first_antiprompt.end());
-                }
-            }
             // add it to the context
             embd.push_back(id);
             // echo this to console
             input_noecho = false;
-            // decrement remaining sampling budget
-            --n_remain;
         } else {
             // some user input remains from prompt or interaction, forward it to processing
             while ((int) embd_inp.size() > n_consumed) {
@@ -152,70 +149,12 @@ int predict_text(
                 available_tokens[uuid].push_back(llama_token_to_str(ctx, id));
             }
         }
-        // in interactive mode, and not currently processing queued inputs;
-        // check if we should prompt the user for more
-        if (params.interactive && (int) embd_inp.size() <= n_consumed) {
-            // check for reverse prompt
-            if (params.antiprompt.size()) {
-                std::string last_output;
-                for (auto id : last_n_tokens) {
-                    last_output += llama_token_to_str(ctx, id);
-                }
-                is_antiprompt = false;
-                // Check if each of the reverse prompts appears at the end of the output.
-                for (std::string & antiprompt : params.antiprompt) {
-                    if (last_output.find(antiprompt.c_str(), last_output.length() - antiprompt.length(), antiprompt.length()) != std::string::npos) {
-                        is_interacting = true;
-                        is_antiprompt = true;
-                        mtx.unlock();
-                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                        break;
-                    }
-                }
-            }
-
-            if (n_past > 0 && is_interacting) {
-                std::string buffer;
-                if (!params.input_prefix.empty()) {
-                    buffer += params.input_prefix;
-                    printf("%s", buffer.c_str());
-                }
-
-                std::string line;
-                bool another_line = true;
-                do {
-                    if (line.empty() || line.back() != '\\') {
-                        another_line = false;
-                    } else {
-                        line.pop_back(); // Remove the continue character
-                    }
-                    buffer += line + '\n'; // Append the line to the result
-                } while (another_line);
-
-                // Add tokens to embd only if the input buffer is non-empty
-                // Entering a empty line lets the user pass control back
-                if (buffer.length() > 1) {
-                    auto line_inp = ::llama_tokenize(ctx, buffer, false);
-                    embd_inp.insert(embd_inp.end(), line_inp.begin(), line_inp.end());
-                    n_remain -= line_inp.size();
-                }
-                input_noecho = true; // do not echo this again
-            }
-            if (n_past > 0) {
-                is_interacting = false;
-            }
-        }
         // end of text token
         if (!embd.empty() && embd.back() == llama_token_eos()) {
             available_tokens[uuid].push_back("[DONE]");
             mtx.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             break;
-        }
-        // In interactive mode, respect the maximum number of tokens and drop back to user input when reached.
-        if (params.interactive && n_remain <= 0 && params.n_predict != -1) {
-            n_remain = params.n_predict;
-            is_interacting = true;
         }
         mtx.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -225,8 +164,8 @@ int predict_text(
 
 void deploy_generation(
         llama_context *ctx,
-        gpt_params params,
-        const std::string& prompt,
+        liberty_args& params,
+        std::string& prompt,
         StringBuffer& response_buffer
     )
 {
@@ -238,7 +177,7 @@ void deploy_generation(
     rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
     uuid = boost::uuids::random_generator()();
     uuid_str << uuid;
-    generator_threads[uuid_str.str()] = new std::thread(predict_text, ctx, params, uuid_str.str(), prompt);
+    generator_threads[uuid_str.str()] = new std::thread(predict_text, ctx, std::ref(params), uuid_str.str(), prompt);
     message_value.SetString(uuid_str.str().c_str(), allocator);
     response.AddMember("uuid", message_value, response.GetAllocator());
     Writer<StringBuffer> writer(response_buffer);
@@ -271,7 +210,7 @@ void fetch_tokens(
 
 void handle_request(
         llama_context *ctx,
-        gpt_params params,
+        liberty_args& params,
         boost::asio::ip::tcp::socket& socket,
         StringBuffer& response_buffer
     ) 
@@ -291,8 +230,19 @@ void handle_request(
     // Process the request based on the requested path
     if (request.method() == boost::beast::http::verb::post && request.target() == "/api/completion/submit") {
         if (doc.HasMember("text") && doc["text"].IsString()) {
+            liberty_args new_params;
+            new_params.n_threads = params.n_threads;
+            new_params.model = params.model;
+            new_params.top_k = (doc.HasMember("top_k") && doc["top_k"].IsString()) ? std::stoi(doc["top_k"].GetString()) : params.top_k;
+            new_params.repeat_last_n = (doc.HasMember("repeat_last_n") && doc["repeat_last_n"].IsString()) ? std::stoi(doc["repeat_last_n"].GetString()) : params.repeat_last_n;
+            new_params.top_p = (doc.HasMember("top_p") && doc["top_p"].IsString()) ? std::stof(doc["top_p"].GetString()) : params.top_p;
+            new_params.temp = (doc.HasMember("temp") && doc["temp"].IsString()) ? std::stof(doc["temp"].GetString()) : params.temp;
+            new_params.repeat_penalty = (doc.HasMember("repeat_penalty") && doc["repeat_penalty"].IsString()) ? std::stof(doc["repeat_penalty"].GetString()) : params.repeat_penalty;
+            new_params.ignore_eos = false;
+            new_params.n_batch = params.n_batch;
+
             std::string text = doc["text"].GetString();
-            deploy_generation(ctx, params, text, response_buffer);
+            deploy_generation(ctx, new_params, text, response_buffer);
         } else return;
     } else if (request.method() == boost::beast::http::verb::post && request.target() == "/api/completion/fetch") {
         if (doc.HasMember("uuid") && doc["uuid"].IsString()&&doc.HasMember("index") && doc["index"].IsString()) {
@@ -306,11 +256,10 @@ void handle_request(
     }
 }
 
-llama_context *load_model(gpt_params& params) {
+llama_context *load_model(liberty_args& params) {
     llama_context * ctx;
     auto lparams = llama_context_default_params();
-    lparams.n_ctx      = 512;
-    //lparams.n_ctx      = 2048;
+    lparams.n_ctx      = params.n_ctx;
     lparams.n_parts    = 1;
     lparams.seed       = time(NULL);
     lparams.f16_kv     = 2;
@@ -319,19 +268,56 @@ llama_context *load_model(gpt_params& params) {
     return ctx;
 }
 
-void print_sysinfo(gpt_params& params) {
+void print_sysinfo(liberty_args& params) {
     fprintf(stderr, "\n");
     fprintf(stderr, "system_info: n_threads = %d / %d | %s\n", params.n_threads, std::thread::hardware_concurrency(), llama_print_system_info());
 }
 
+bool parse_params(int ac, char ** av, liberty_args &params) {
+    params.model = "";
+    params.n_threads = 1;
+    params.top_k = 40;
+    params.top_p = 0.95;
+    params.temp = 0.7;
+    params.repeat_penalty = 1.0;
+    params.repeat_last_n = 64;
+    params.n_batch = 32;
+    params.n_ctx = 512;
+
+    po::options_description desc("Options for the API server");
+    desc.add_options()
+        ("help,h", "Show this help message")
+        ("model,m", po::value<std::string>(&params.model), "Path to the model")
+        ("threads,t", po::value<int>(&params.n_threads), "Number of threads")
+        ("context,N", po::value<int>(&params.n_ctx), "Context size")
+        ;
+    po::variables_map vm;
+    try {
+        po::store(po::parse_command_line(ac, av, desc), vm);
+    }
+    catch (...) {
+        std::cout << desc << std::endl;
+        return false;
+    }
+    po::notify(vm);
+
+    if (vm.count("help") || !vm.count("model")) {
+        std::cout << desc << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
 int main(int argc, char ** argv) {
     llama_context *ctx;
-    gpt_params params;
-    if ( params.model == "" ) {
+    liberty_args params;
+
+    if (parse_params(argc, argv, params) == false) {
         return 1;
     }
 
-    if (gpt_params_parse(argc, argv, params) == false) {
+    if ( params.model == "" ) {
         return 1;
     }
 
@@ -355,7 +341,6 @@ int main(int argc, char ** argv) {
 
         // Read the incoming HTTP request
         boost::asio::streambuf request_buffer;
-        //boost::asio::read_until(socket, request_buffer, "\r\n\r\n");
 
         // Handle the request and generate a response
         StringBuffer response_buffer;

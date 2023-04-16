@@ -2,6 +2,7 @@ CXXFLAGS += -I llama.cpp
 CXXFLAGS += -I llama.cpp/examples
 LDFLAGS += -lboost_system
 LDFLAGS += -lboost_thread
+LDFLAGS += -lboost_program_options
 LDFLAGS += -lpthread
 LDFLAGS += -lclblast
 
@@ -10,8 +11,10 @@ $(info I LDFLAGS: $(LDFLAGS))
 
 all: apiserver
 
-apiserver:
+llama.cpp:
 	cd llama.cpp && make LDFLAGS="$(LDFLAGS)" LLAMA_OPENBLAS=1 && cd ..
+
+apiserver: llama.cpp apiserver.cpp
 	$(CXX) $(CXXFLAGS) apiserver.cpp llama.cpp/ggml.o llama.cpp/llama.o llama.cpp/common.o -o apiserver $(LDFLAGS)
 
 clean:
