@@ -86,7 +86,7 @@ class LibertyChain(LLMChain, BaseModel):
             'context': context,
             'summary': chat_summary,
             'current_date': datetime.now().strftime("%A (%d/%m/%Y)"),
-            'current_time': datetime.now().strftime("%H:%M %p (Time zone: UTC)"),
+            'current_time': datetime.now().strftime("%H:%M %p"),
             #'user_name': self.user_name,
             #'user_mail': self.user_mail,
         }
