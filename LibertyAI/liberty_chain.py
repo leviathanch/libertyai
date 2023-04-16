@@ -123,4 +123,3 @@ class LibertyChain(LLMChain, BaseModel):
             self.hash_table[uuid]['reply'] += text
 
         return text
-'''
