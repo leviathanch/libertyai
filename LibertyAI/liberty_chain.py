@@ -40,7 +40,7 @@ class LibertyChain(LLMChain, BaseModel):
     human_prefix: str = "Human"
     ai_prefix: str = "LibertyAI"
     hash_table: dict = {}
-    prompt: BasePromptTemplate = PROMPT
+    prompt: BasePromptTemplate = EN_PROMPT
     mrkl: AgentExecutor = None
     memory: BaseMemory = None
     summary: ConversationSummaryMemory = None
