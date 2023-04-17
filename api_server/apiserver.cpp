@@ -88,8 +88,8 @@ bool is_partial_stop(std::string text, std::vector<std::string> tokens) {
 int predict_text(
         llama_context *ctx,
         liberty_args params,
-        const std::string uuid,
-        const std::string prompt
+        std::string uuid,
+        std::string prompt
     )
 {
     std::string generated_text = "";
@@ -101,8 +101,11 @@ int predict_text(
     const int n_ctx = llama_n_ctx(ctx);
     // tokenize the prompt
     std::vector<llama_token> embd_inp = ::llama_tokenize(ctx, prompt, true);
+    std::cout << "Prompt: " << prompt << std::endl;
+    std::cout << "Len tokenized: " << embd_inp.size() << std::endl;
     if ((int) embd_inp.size() > n_ctx - 4) {
         fprintf(stderr, "%s: error: prompt is too long (%d tokens, max %d)\n", __func__, (int) embd_inp.size(), n_ctx - 4);
+        available_tokens[uuid].push_back("[DONE]");
         return 1;
     }
     int n_keep = (int)embd_inp.size();
@@ -126,7 +129,6 @@ int predict_text(
             }
             if (llama_eval(ctx, embd.data(), embd.size(), n_past, params.n_threads)) {
                 fprintf(stderr, "%s : failed to eval\n", __func__);
-                available_tokens[uuid].push_back("[DONE]");
                 mtx.unlock();
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 break;
@@ -140,9 +142,11 @@ int predict_text(
             // out of user input, sample next token
             llama_token id = 0;
             auto logits = llama_get_logits(ctx);
-            id = llama_sample_top_p_top_k(ctx,
-                    last_n_tokens.data() + n_ctx - params.repeat_last_n,
-                    params.repeat_last_n, params.top_k, params.top_p, params.temp, params.repeat_penalty);
+            id = llama_sample_top_p_top_k(
+                ctx,
+                last_n_tokens.data() + n_ctx - params.repeat_last_n,
+                params.repeat_last_n, params.top_k, params.top_p, params.temp, params.repeat_penalty
+            );
             last_n_tokens.erase(last_n_tokens.begin());
             last_n_tokens.push_back(id);
             // add it to the context
@@ -157,7 +161,6 @@ int predict_text(
                 last_n_tokens.push_back(embd_inp[n_consumed]);
                 ++n_consumed;
                 if ((int) embd.size() >= params.n_batch) {
-                    available_tokens[uuid].push_back("[DONE]");
                     mtx.unlock();
                     std::this_thread::sleep_for(std::chrono::milliseconds(50));
                     break;
@@ -179,7 +182,6 @@ int predict_text(
                 }
             }
             if(contains_stop(generated_text, params.stop)) {
-                available_tokens[uuid].push_back("[DONE]");
                 mtx.unlock();
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 break;
@@ -187,7 +189,6 @@ int predict_text(
         }
         // end of text token
         if ( !embd.empty() && embd.back() == llama_token_eos() ) {
-            available_tokens[uuid].push_back("[DONE]");
             mtx.unlock();
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             break;
@@ -195,6 +196,7 @@ int predict_text(
         mtx.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
+    available_tokens[uuid].push_back("[DONE]");
     return 0;
 }
 
@@ -210,7 +212,7 @@ void deploy_generation(
     Document response;
     response.SetObject();
     Value message_value;
-    rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
+    rapidjson::Document::AllocatorType allocator = response.GetAllocator();
     uuid = boost::uuids::random_generator()();
     uuid_str << uuid;
     generator_threads[uuid_str.str()] = new std::thread(predict_text, ctx, params, uuid_str.str(), prompt);
@@ -282,7 +284,6 @@ void handle_request(
                 }
             }
             new_params.n_batch = params.n_batch;
-
             std::string text = doc["text"].GetString();
             deploy_generation(ctx, new_params, text, response_buffer);
         } else return;
