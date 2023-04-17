@@ -41,7 +41,7 @@ def initialize_chatbot(**kwargs: Any) -> LibertyChain:
         memory = conv_mem,
         llm = main_llm,
         mrkl = get_zero_shot_agent( main_llm ),
-        #verbose = True,
+        verbose = True,
         user_name = kwargs['name'],
         user_mail = kwargs['email'],
         embeddings = main_emb,

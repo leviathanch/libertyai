@@ -322,7 +322,7 @@ bool parse_params(int ac, char ** av, liberty_args &params) {
     params.repeat_penalty = 1.0;
     params.repeat_last_n = 64;
     params.n_batch = 32;
-    params.n_ctx = 512;
+    params.n_ctx = 2048;
 
     po::options_description desc("Options for the API server");
     desc.add_options()
