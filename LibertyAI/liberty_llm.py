@@ -18,6 +18,9 @@ class LibertyLLM(LLM):
 
     def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
         uuid = self.submit_partial(prompt, stop)
+        if not uuid:
+            return "[DONE]"
+
         ret = ""
         text = ""
         i = 0
@@ -47,7 +50,7 @@ class LibertyLLM(LLM):
         if 'uuid' in reply:
             return reply['uuid']
         else:
-            return ""
+            return None
 
     def get_partial(self, uuid, index):
         config = get_configuration()

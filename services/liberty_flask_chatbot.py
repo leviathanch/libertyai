@@ -201,7 +201,7 @@ def chatbot_start_generation():
 
     uuid = active_bots[current_user.id].start_generations(message)
 
-    return uuid
+    return uuid if uuid else ""
 
 @app.route("/chatbot/get_part")
 @login_required

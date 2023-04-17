@@ -118,7 +118,7 @@ class LibertyChain(LLMChain, BaseModel):
                 inputs = {self.human_prefix: self.hash_table[uuid]['message'].strip()},
                 outputs = {self.ai_prefix: self.hash_table[uuid]['reply'].strip()}
             )
-            del elf.hash_table[uuid]
+            del self.hash_table[uuid]
         else:
             self.hash_table[uuid]['reply'] += text
 
