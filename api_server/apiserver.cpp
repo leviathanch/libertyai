@@ -59,6 +59,7 @@ struct liberty_args {
     float top_p;
     int32_t top_k;
     int32_t n_ctx;
+    bool input_noecho;
 };
 
 bool contains_stop(std::string text, std::vector<std::string> tokens) {
@@ -94,15 +95,13 @@ int predict_text(
 {
     std::string generated_text = "";
 
-    bool input_noecho  = true;
+    bool input_noecho  = params.input_noecho;
     int n_past     = 0;
     int n_consumed = 0;
 
     const int n_ctx = llama_n_ctx(ctx);
     // tokenize the prompt
     std::vector<llama_token> embd_inp = ::llama_tokenize(ctx, prompt, true);
-    std::cout << "Prompt: " << prompt << std::endl;
-    std::cout << "Len tokenized: " << embd_inp.size() << std::endl;
     if ((int) embd_inp.size() > n_ctx - 4) {
         fprintf(stderr, "%s: error: prompt is too long (%d tokens, max %d)\n", __func__, (int) embd_inp.size(), n_ctx - 4);
         available_tokens[uuid].push_back("[DONE]");
@@ -129,7 +128,7 @@ int predict_text(
             }
             if (llama_eval(ctx, embd.data(), embd.size(), n_past, params.n_threads)) {
                 fprintf(stderr, "%s : failed to eval\n", __func__);
-                goto cleanup;
+                goto done_token;
             }
         }
 
@@ -178,21 +177,22 @@ int predict_text(
                 }
             }
             if(contains_stop(generated_text, params.stop)) {
-                goto cleanup;
+                goto done_token;
             }
         }
         // end of text token
         if ( !embd.empty() && embd.back() == llama_token_eos() ) {
-            goto cleanup;
+            goto done_token;
         }
         mtx.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
-cleanup:
+done_token:
     available_tokens[uuid].push_back("[DONE]");
     mtx.unlock();
     return 0;
+
 }
 
 void deploy_generation(
@@ -265,6 +265,7 @@ void handle_request(
         if (doc.HasMember("text") && doc["text"].IsString()) {
             liberty_args new_params;
             new_params.n_threads = params.n_threads;
+            new_params.input_noecho = params.input_noecho;
             new_params.model = params.model;
             new_params.top_k = (doc.HasMember("top_k") && doc["top_k"].IsString()) ? std::stoi(doc["top_k"].GetString()) : params.top_k;
             new_params.top_p = (doc.HasMember("top_p") && doc["top_p"].IsString()) ? std::stof(doc["top_p"].GetString()) : params.top_p;
@@ -276,6 +277,15 @@ void handle_request(
                     if(v.IsString()) {
                         new_params.stop.push_back(v.GetString());
                     }
+                }
+            }
+            if (doc.HasMember("echo") && doc["echo"].IsString()) {
+                std::string have_echo = doc["echo"].GetString();
+                if(have_echo=="yes") {
+                    new_params.input_noecho = false;
+                }
+                if(have_echo=="no") {
+                    new_params.input_noecho = true;
                 }
             }
             new_params.n_batch = params.n_batch;
@@ -321,6 +331,7 @@ bool parse_params(int ac, char ** av, liberty_args &params) {
     params.repeat_last_n = 64;
     params.n_batch = 32;
     params.n_ctx = 2048;
+    params.input_noecho = true;
 
     po::options_description desc("Options for the API server");
     desc.add_options()
