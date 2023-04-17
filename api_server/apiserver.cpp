@@ -129,9 +129,7 @@ int predict_text(
             }
             if (llama_eval(ctx, embd.data(), embd.size(), n_past, params.n_threads)) {
                 fprintf(stderr, "%s : failed to eval\n", __func__);
-                mtx.unlock();
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                break;
+                goto cleanup;
             }
         }
 
@@ -161,8 +159,6 @@ int predict_text(
                 last_n_tokens.push_back(embd_inp[n_consumed]);
                 ++n_consumed;
                 if ((int) embd.size() >= params.n_batch) {
-                    mtx.unlock();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
                     break;
                 }
             }
@@ -182,21 +178,20 @@ int predict_text(
                 }
             }
             if(contains_stop(generated_text, params.stop)) {
-                mtx.unlock();
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                break;
+                goto cleanup;
             }
         }
         // end of text token
         if ( !embd.empty() && embd.back() == llama_token_eos() ) {
-            mtx.unlock();
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            break;
+            goto cleanup;
         }
         mtx.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
+
+cleanup:
     available_tokens[uuid].push_back("[DONE]");
+    mtx.unlock();
     return 0;
 }
 
