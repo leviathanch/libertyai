@@ -88,8 +88,8 @@ bool is_partial_stop(std::string text, std::vector<std::string> tokens) {
 int predict_text(
         llama_context *ctx,
         liberty_args params,
-        const std::string& uuid,
-        const std::string& prompt
+        const std::string uuid,
+        const std::string prompt
     )
 {
     std::string generated_text = "";
@@ -201,7 +201,7 @@ int predict_text(
 void deploy_generation(
         llama_context *ctx,
         liberty_args params,
-        std::string& prompt,
+        std::string prompt,
         StringBuffer& response_buffer
     )
 {
@@ -221,8 +221,8 @@ void deploy_generation(
 }
 
 void fetch_tokens(
-        const std::string& uuid,
-        const std::string& index,
+        const std::string uuid,
+        const std::string index,
         StringBuffer& response_buffer
     )
 {
