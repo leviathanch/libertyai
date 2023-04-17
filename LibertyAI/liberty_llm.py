@@ -42,11 +42,15 @@ class LibertyLLM(LLM):
         if stop:
             jd['stop'] = stop
 
-        response = requests.post(
-            self.endpoint+'/submit',
-            json = jd,
-        )
-        reply = response.json()
+        try:
+            response = requests.post(
+                self.endpoint+'/submit',
+                json = jd,
+            )
+            reply = response.json()
+        except:
+            return None
+
         if 'uuid' in reply:
             return reply['uuid']
         else:
@@ -54,11 +58,15 @@ class LibertyLLM(LLM):
 
     def get_partial(self, uuid, index):
         config = get_configuration()
-        response = requests.post(
-            self.endpoint+'/fetch',
-            json = {'uuid' : uuid, 'index': str(index) },
-        )
-        reply = response.json()
+        try:
+            response = requests.post(
+                self.endpoint+'/fetch',
+                json = {'uuid' : uuid, 'index': str(index) },
+            )
+            reply = response.json()
+        except:
+            return "[DONE]"
+
         text = ""
         if 'text' in reply:
             text = reply['text']
