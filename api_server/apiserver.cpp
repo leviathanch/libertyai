@@ -207,7 +207,7 @@ void deploy_generation(
     Document response;
     response.SetObject();
     Value message_value;
-    rapidjson::Document::AllocatorType allocator = response.GetAllocator();
+    rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
     uuid = boost::uuids::random_generator()();
     uuid_str << uuid;
     generator_threads[uuid_str.str()] = new std::thread(predict_text, ctx, params, uuid_str.str(), prompt);
