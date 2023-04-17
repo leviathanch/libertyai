@@ -1,5 +1,6 @@
 CXXFLAGS += -I llama.cpp
 CXXFLAGS += -I llama.cpp/examples
+CXXFLAGS += -g -S0
 LDFLAGS += -lboost_system
 LDFLAGS += -lboost_thread
 LDFLAGS += -lboost_program_options
