@@ -126,6 +126,7 @@ int predict_text(
             }
             if (llama_eval(ctx, embd.data(), embd.size(), n_past, params.n_threads)) {
                 fprintf(stderr, "%s : failed to eval\n", __func__);
+                available_tokens[uuid].push_back("[DONE]");
                 mtx.unlock();
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 break;
@@ -156,6 +157,7 @@ int predict_text(
                 last_n_tokens.push_back(embd_inp[n_consumed]);
                 ++n_consumed;
                 if ((int) embd.size() >= params.n_batch) {
+                    available_tokens[uuid].push_back("[DONE]");
                     mtx.unlock();
                     std::this_thread::sleep_for(std::chrono::milliseconds(50));
                     break;
