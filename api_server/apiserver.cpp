@@ -224,7 +224,7 @@ void deploy_generation(
     response.Accept(writer);
 }
 
-void return_busy(
+void return_done(
         StringBuffer& response_buffer
     )
 {
@@ -232,7 +232,7 @@ void return_busy(
     response.SetObject();
     Value message_value;
     rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
-    message_value.SetString("[BUSY]");
+    message_value.SetString("[DONE]");
     response.AddMember("text", message_value, response.GetAllocator());
     Writer<StringBuffer> writer(response_buffer);
     response.Accept(writer);
@@ -319,11 +319,11 @@ void handle_request(
             std::string index= doc["index"].GetString();
             fetch_tokens(uuid, index, response_buffer);
         } else {
-            return_busy(response_buffer);
+            return_done(response_buffer);
         }
     } else {
         std::cerr << "Invalid request: " << request.method_string() << " " << request.target() << std::endl;
-        return_busy(response_buffer);
+        return_done(response_buffer);
     }
 }
 
