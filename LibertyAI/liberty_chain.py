@@ -113,7 +113,10 @@ class LibertyChain(LLMChain, BaseModel):
         if uuid not in self.hash_table:
             return "[DONE]"
 
-        text = self.llm.get_partial(uuid, index)
+        try:
+            text = self.llm.get_partial(uuid, index)
+        except:
+            return "[DONE]"
 
         if text == "[DONE]":
             self.memory.save_context(

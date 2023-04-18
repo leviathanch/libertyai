@@ -58,7 +58,7 @@ class LibertyLLM(LLM):
             return None
 
     def get_partial(self, uuid, index):
-        text = "[BUSY]"
+        text = "[DONE]"
         config = get_configuration()
         jsd = {'uuid' : uuid, 'index': str(index) }
         try:

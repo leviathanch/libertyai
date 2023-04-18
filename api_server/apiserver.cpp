@@ -224,6 +224,21 @@ void deploy_generation(
     response.Accept(writer);
 }
 
+void return_busy(
+        StringBuffer& response_buffer
+    )
+{
+    Document response;
+    response.SetObject();
+    Value message_value;
+    int i = stoi(index);
+    rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
+    message_value.SetString("[BUSY]");
+    response.AddMember("text", message_value, response.GetAllocator());
+    Writer<StringBuffer> writer(response_buffer);
+    response.Accept(writer);
+}
+
 void fetch_tokens(
         const std::string uuid,
         const std::string index,
@@ -304,10 +319,12 @@ void handle_request(
             std::string uuid = doc["uuid"].GetString();
             std::string index= doc["index"].GetString();
             fetch_tokens(uuid, index, response_buffer);
-        } else return;
+        } else {
+            return_busy(response_buffer);
+        }
     } else {
         std::cerr << "Invalid request: " << request.method_string() << " " << request.target() << std::endl;
-        return;
+        return_busy(response_buffer);
     }
 }
 
