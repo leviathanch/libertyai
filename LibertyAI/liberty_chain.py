@@ -110,6 +110,9 @@ class LibertyChain(LLMChain, BaseModel):
         return uuid
 
     def get_part(self, uuid, index):
+        if uuid not in self.hash_table:
+            return "[DONE]"
+
         text = self.llm.get_partial(uuid, index)
 
         if text == "[DONE]":
