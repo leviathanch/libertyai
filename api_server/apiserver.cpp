@@ -248,7 +248,7 @@ void fetch_tokens(
     Document response;
     response.SetObject();
     Value message_value;
-    int i = stoi(index);
+    int i = std::stoi(index);
     rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
 
     if( available_tokens[uuid].size() > i ) {
