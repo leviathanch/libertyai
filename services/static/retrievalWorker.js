@@ -10,7 +10,7 @@ const retrievalPromise = function (uuid, index) {
                     retrievalPromise(uuid, index ).then(function (state) {
                         setTimeout(resolve, 1000, "iterating");
                     });
-                } else if ( text !== "[DONE]") {
+                } else if ( text !== "[DONE]" ) {
                     self.postMessage(text);
                     retrievalPromise(uuid, index+1 ).then(function (state) {
                         setTimeout(resolve, 200, "iterating");

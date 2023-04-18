@@ -79,10 +79,10 @@ class LibertyChain(LLMChain, BaseModel):
         #    documents = self.vectordb.similarity_search_with_score(query=message, k=1)
         #    context = documents[0][0].page_content
         context = ""
-        #chat_history = self.memory.load_memory_variables(inputs=[])['history']
+        chat_history = self.memory.load_memory_variables(inputs=[])['history']
         #chat_summary = self.summary.load_memory_variables(inputs=[])['history']
         chat_summary = ""
-        chat_history = ""
+        #chat_history = ""
         d = {
             'input': message,
             'history': chat_history,
@@ -111,8 +111,7 @@ class LibertyChain(LLMChain, BaseModel):
 
     def get_part(self, uuid, index):
         text = self.llm.get_partial(uuid, index)
-        return text
-'''
+
         if text == "[DONE]":
             self.memory.save_context(
                 inputs = {self.human_prefix: self.hash_table[uuid]['message'].strip()},
@@ -123,6 +122,7 @@ class LibertyChain(LLMChain, BaseModel):
                 outputs = {self.ai_prefix: self.hash_table[uuid]['reply'].strip()}
             )
             del self.hash_table[uuid]
-        else:
+        elif text != "[BUSY]":
             self.hash_table[uuid]['reply'] += text
-'''
+
+        return text
