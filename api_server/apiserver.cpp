@@ -104,8 +104,9 @@ int predict_text(
     // tokenize the prompt
     std::vector<llama_token> embd_inp = ::llama_tokenize(ctx, prompt, true);
     if ((int) embd_inp.size() > n_ctx - 4) {
-        fprintf(stderr, "%s: error: prompt is too long (%d tokens, max %d)\n", __func__, (int) embd_inp.size(), n_ctx - 4);
         available_tokens[uuid].push_back("[DONE]");
+        fprintf(stderr, "%s: error: prompt is too long (%d tokens, max %d)\n", __func__, (int) embd_inp.size(), n_ctx - 4);
+        std::cout << "Prompt:\n" << prompt << std::flush;
         return 1;
     }
     int n_keep = (int)embd_inp.size();
@@ -179,7 +180,7 @@ int predict_text(
                     }
                 }
                 if ( params.verbosity_level > 0 ) {
-                    std::cerr << tok << std::flush;
+                    std::cout << tok << std::flush;
                 }
             }
             if(contains_stop(generated_text, params.stop)) {

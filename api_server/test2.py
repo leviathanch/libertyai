@@ -12,12 +12,13 @@ chatbot = initialize_chatbot(
     name="Mr. Human",
     email="user@test.com",
     llm = LibertyLLM(
+        echo = True,
         endpoint = config.get('API', 'GENERATION_ENDPOINT'),
     ),
     emb = None,
 )
 
-uuid = chatbot.start_generations("Hello there")
+uuid = chatbot.start_generations("Hello there!\nHow are you doing?")
 print(uuid)
 
 text = ""
