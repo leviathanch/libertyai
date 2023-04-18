@@ -215,7 +215,10 @@ def chatbot_get_part():
     if current_user.id not in active_bots:
         return "[DONE]"
 
-    token = active_bots[current_user.id].get_part(uuid, int(index))
+    try:
+        token = active_bots[current_user.id].get_part(uuid, int(index))
+    except:
+        return "[DONE]"
 
     return token
 
