@@ -103,11 +103,11 @@ int predict_text(
     const int n_ctx = llama_n_ctx(ctx);
     // tokenize the prompt
     std::vector<llama_token> embd_inp = ::llama_tokenize(ctx, prompt, true);
-    /*if ((int) embd_inp.size() > n_ctx - 4) {
+    if ((int) embd_inp.size() > n_ctx - 4) {
         fprintf(stderr, "%s: error: prompt is too long (%d tokens, max %d)\n", __func__, (int) embd_inp.size(), n_ctx - 4);
         available_tokens[uuid].push_back("[DONE]");
         return 1;
-    }*/
+    }
     int n_keep = (int)embd_inp.size();
     std::vector<llama_token> embd;
     std::vector<llama_token> last_n_tokens(n_ctx);
