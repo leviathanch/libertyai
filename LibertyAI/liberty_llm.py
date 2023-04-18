@@ -61,19 +61,16 @@ class LibertyLLM(LLM):
         text = "[BUSY]"
         config = get_configuration()
         jsd = {'uuid' : uuid, 'index': str(index) }
-        while text == "[BUSY]":
-            try:
-                response = requests.post(
-                    self.endpoint+'/fetch',
-                    json = jsd,
-                )
-                reply = response.json()
-            except:
-                return "[DONE]"
+        try:
+            response = requests.post(
+                self.endpoint+'/fetch',
+                json = jsd,
+            )
+            reply = response.json()
+        except:
+            return "[DONE]"
 
-            if 'text' in reply:
-                text = reply['text']
-                if text == "[BUSY]":
-                    time.sleep(0.1)
+        if 'text' in reply:
+            text = reply['text']
 
         return text
