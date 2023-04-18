@@ -231,7 +231,6 @@ void return_busy(
     Document response;
     response.SetObject();
     Value message_value;
-    int i = stoi(index);
     rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
     message_value.SetString("[BUSY]");
     response.AddMember("text", message_value, response.GetAllocator());
@@ -240,8 +239,8 @@ void return_busy(
 }
 
 void fetch_tokens(
-        const std::string uuid,
-        const std::string index,
+        std::string uuid,
+        std::string index,
         StringBuffer& response_buffer
     )
 {
