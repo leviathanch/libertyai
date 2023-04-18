@@ -11,6 +11,7 @@ class LibertyLLM(LLM):
     endpoint: str
     #temperature: float
     #max_tokens: int
+    echo: bool =  False
 
     @property
     def _llm_type(self) -> str:
@@ -57,18 +58,22 @@ class LibertyLLM(LLM):
             return None
 
     def get_partial(self, uuid, index):
+        text = "[BUSY]"
         config = get_configuration()
-        try:
-            response = requests.post(
-                self.endpoint+'/fetch',
-                json = {'uuid' : uuid, 'index': str(index) },
-            )
-            reply = response.json()
-        except:
-            return "[DONE]"
+        jsd = {'uuid' : uuid, 'index': str(index) }
+        while text == "[BUSY]":
+            try:
+                response = requests.post(
+                    self.endpoint+'/fetch',
+                    json = jsd,
+                )
+                reply = response.json()
+            except:
+                return "[DONE]"
 
-        text = ""
-        if 'text' in reply:
-            text = reply['text']
+            if 'text' in reply:
+                text = reply['text']
+                if text == "[BUSY]":
+                    time.sleep(0.1)
 
         return text
