@@ -60,6 +60,7 @@ struct liberty_args {
     int32_t top_k;
     int32_t n_ctx;
     bool input_noecho;
+    int verbosity_level;
 };
 
 bool contains_stop(std::string text, std::vector<std::string> tokens) {
@@ -102,11 +103,11 @@ int predict_text(
     const int n_ctx = llama_n_ctx(ctx);
     // tokenize the prompt
     std::vector<llama_token> embd_inp = ::llama_tokenize(ctx, prompt, true);
-    if ((int) embd_inp.size() > n_ctx - 4) {
+    /*if ((int) embd_inp.size() > n_ctx - 4) {
         fprintf(stderr, "%s: error: prompt is too long (%d tokens, max %d)\n", __func__, (int) embd_inp.size(), n_ctx - 4);
         available_tokens[uuid].push_back("[DONE]");
         return 1;
-    }
+    }*/
     int n_keep = (int)embd_inp.size();
     std::vector<llama_token> embd;
     std::vector<llama_token> last_n_tokens(n_ctx);
@@ -162,18 +163,23 @@ int predict_text(
                 }
             }
         }
-        if (!input_noecho) {
+        if ( !input_noecho || params.verbosity_level > 0 ) {
             for (auto id : embd) {
                 std::string tok = llama_token_to_str(ctx, id);
-                generated_text += tok;
-                if(is_partial_stop(tok, params.stop)) {
-                    last_partial_stops.push_back(tok);
-                } else {
-                    for(auto st: last_partial_stops) {
-                        available_tokens[uuid].push_back(st);
+                if ( !input_noecho ) {
+                    generated_text += tok;
+                    if(is_partial_stop(tok, params.stop)) {
+                        last_partial_stops.push_back(tok);
+                    } else {
+                        for(auto st: last_partial_stops) {
+                            available_tokens[uuid].push_back(st);
+                        }
+                        last_partial_stops.clear();
+                        available_tokens[uuid].push_back(tok);
                     }
-                    last_partial_stops.clear();
-                    available_tokens[uuid].push_back(tok);
+                }
+                if ( params.verbosity_level > 0 ) {
+                    std::cerr << tok << std::endl;
                 }
             }
             if(contains_stop(generated_text, params.stop)) {
@@ -332,6 +338,7 @@ bool parse_params(int ac, char ** av, liberty_args &params) {
     params.n_batch = 32;
     params.n_ctx = 2048;
     params.input_noecho = true;
+    params.verbosity_level = 0;
 
     po::options_description desc("Options for the API server");
     desc.add_options()
@@ -340,6 +347,7 @@ bool parse_params(int ac, char ** av, liberty_args &params) {
         ("threads,t", po::value<int>(&params.n_threads), "Number of threads")
         ("context,N", po::value<int>(&params.n_ctx), "Context size")
         ("batch,B", po::value<int>(&params.n_batch), "Batch size")
+        ("verbose,v", po::value<int>()->implicit_value(1), "enable verbosity (optionally specify level)")
         ;
     po::variables_map vm;
     try {
@@ -354,6 +362,9 @@ bool parse_params(int ac, char ** av, liberty_args &params) {
     if (vm.count("help") || !vm.count("model")) {
         std::cout << desc << std::endl;
         return false;
+    }
+    if (vm.count("verbose")) {
+        params.verbosity_level = vm["verbose"].as<int>();
     }
 
     return true;
