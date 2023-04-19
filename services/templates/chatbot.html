@@ -28,6 +28,7 @@
 <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
 <script>
+
 function getBotResponse() {
     if ($("#textInput").val()==="") {
         return 0;
@@ -57,13 +58,12 @@ function getBotResponse() {
     var txt = document.createElement("div");
     txt.classList.add("blinkyChat");
     chatBotWorkObject.append(txt);
-    $.get("/chatbot/start_generation", { msg: rawText }).done( function(hash) {
-        startTypeWriterJob(hash, txt);
-        const retrievalWorker = new Worker("{{ url_for('static', filename='retrievalWorker.js') }}");
-        retrievalWorker.addEventListener("message", function (text) {
-            addToTypeWriterQueue(hash, text);
-        });
-        retrievalWorker.postMessage(hash);
+    $.get("/chatbot/start_generation", { msg: rawText }).done( function(uuid) {
+        startTypeWriterJob(uuid, txt);
+        var eventSource = new EventSource("/chatbot/stream?uuid="+uuid);
+        eventSource.onmessage = function(e) {
+            addToTypeWriterQueue(uuid, e.data);
+        };
     });
 }
 

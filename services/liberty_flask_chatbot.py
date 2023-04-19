@@ -1,5 +1,6 @@
 import mimetypes
 import os
+import time
 
 mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('application/javascript', '.ts')
@@ -16,6 +17,7 @@ from flask import (
     url_for,
     flash,
     send_from_directory,
+    Response,
 )
 
 from flask_login import (
@@ -203,24 +205,26 @@ def chatbot_start_generation():
 
     return uuid if uuid else ""
 
-@app.route("/chatbot/get_part")
+@app.route('/chatbot/stream')
 @login_required
-def chatbot_get_part():
+def chatbot_stream():
     try:
         uuid = request.args.get('uuid')
-        index = request.args.get('index')
     except:
-        return "[DONE]"
+        return Response('data: [DONE]\n\n', mimetype="text/event-stream")
 
-    if current_user.id not in active_bots:
-        return "[DONE]"
+    def eventStream(bot):
+        index = 0
+        token = ""
+        while token != "[DONE]":
+            token = bot.get_part(uuid, index)
+            if token == "[BUSY]":
+                time.sleep(1)
+            else:
+                index += 1
+                yield 'data: {}\n\n'.format(token)
 
-    try:
-        token = active_bots[current_user.id].get_part(uuid, int(index))
-    except:
-        return "[DONE]"
-
-    return token
+    return Response(eventStream(active_bots[current_user.id]), mimetype="text/event-stream")
 
 
 def liberty_llm():
