@@ -219,7 +219,7 @@ def chatbot_stream():
         while token != "[DONE]":
             token = bot.get_part(uuid, index)
             if token == "[BUSY]":
-                time.sleep(1)
+                time.sleep(0.1)
             else:
                 index += 1
                 yield 'data: {}\n\n'.format(token)
