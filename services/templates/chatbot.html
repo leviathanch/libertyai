@@ -59,11 +59,15 @@ function getBotResponse() {
     txt.classList.add("blinkyChat");
     chatBotWorkObject.append(txt);
     $.get("/chatbot/start_generation", { msg: rawText }).done( function(uuid) {
-        startTypeWriterJob(uuid, txt);
         var eventSource = new EventSource("/chatbot/stream?uuid="+uuid);
         eventSource.onmessage = function(e) {
-            addToTypeWriterQueue(uuid, e.data);
+            if ( e.data === "[DONE]") {
+                this.close();
+            } else {
+                addToTypeWriterQueue(uuid, e.data);
+            }
         };
+        startTypeWriterJob(uuid, txt);
     });
 }
 
