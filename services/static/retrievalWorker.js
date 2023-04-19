@@ -6,18 +6,18 @@ const retrievalPromise = function (uuid, index) {
             http.setRequestHeader("Content-type", "application/json; charset=utf-8");
             http.onload = function () {
                 var text = this.responseText
-                if ( text === "[BUSY]") {
+                if ( text === "[DONE]") {
+                    self.postMessage(text);
+                    resolve("done");
+                } else if ( text === "[BUSY]") {
                     retrievalPromise(uuid, index ).then(function (state) {
                         setTimeout(resolve, 1000, "iterating");
                     });
-                } else if ( text !== "[DONE]" ) {
+                } else {
                     self.postMessage(text);
                     retrievalPromise(uuid, index+1 ).then(function (state) {
                         setTimeout(resolve, 200, "iterating");
                     });
-                } else {
-                    self.postMessage(text);
-                    setTimeout(resolve, 200, "done");
                 }
             };
             http.send();
