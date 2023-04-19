@@ -61,10 +61,12 @@ function getBotResponse() {
     $.get("/chatbot/start_generation", { msg: rawText }).done( function(uuid) {
         var eventSource = new EventSource("/chatbot/stream?uuid="+uuid);
         eventSource.onmessage = function(e) {
+            console.log(e.data);
             if ( e.data === "[DONE]") {
                 this.close();
+                txt.classList.replace("blinkyChat", "normalChat");
             } else {
-                addToTypeWriterQueue(uuid, e.data);
+                addToTypeWriterQueue(uuid, e);
             }
         };
         startTypeWriterJob(uuid, txt);
