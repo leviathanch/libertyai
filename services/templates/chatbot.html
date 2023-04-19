@@ -65,7 +65,7 @@ function getBotResponse() {
             if ( e.data === "[DONE]") {
                 this.close();
                 txt.classList.replace("blinkyChat", "normalChat");
-            } else {
+            } else if ( e.data !== "[BUSY]") {
                 addToTypeWriterQueue(uuid, e);
             }
         };
