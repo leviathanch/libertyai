@@ -130,7 +130,7 @@ int predict_text(
             }
             if (llama_eval(ctx, embd.data(), embd.size(), n_past, params.n_threads)) {
                 fprintf(stderr, "%s : failed to eval\n", __func__);
-                goto done_token;
+                break;
             }
         }
 
@@ -184,20 +184,19 @@ int predict_text(
                 }
             }
             if(contains_stop(generated_text, params.stop)) {
-                goto done_token;
+                break;
             }
         }
         // end of text token
         if ( !embd.empty() && embd.back() == llama_token_eos() ) {
-            goto done_token;
+            break;
         }
         mtx.unlock();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-
-done_token:
-    available_tokens[uuid].push_back("[DONE]");
     mtx.unlock();
+    available_tokens[uuid].push_back("[DONE]");
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     return 0;
 }
 
