@@ -216,16 +216,11 @@ def chatbot_stream():
     def eventStream(bot):
         index = 0
         token = ""
-        keep_alive_count = 0
         while token != "[DONE]":
             token = bot.get_part(uuid, index)
             if token == "[BUSY]":
-                if keep_alive_count < 30:
-                    time.sleep(1)
-                    keep_alive_count += 1
-                else:
-                    keep_alive_count = 0
-                    yield 'data: [KEEP_ALIVE]\n\n'
+                time.sleep(1)
+                yield 'data: [KEEP_ALIVE]\n\n'
             else:
                 index += 1
                 yield 'data: {}\n\n'.format(token)
