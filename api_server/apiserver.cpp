@@ -249,7 +249,7 @@ void fetch_tokens(
     int i = std::stoi(index);
     rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
 
-    if( !available_tokens.count(uuid) ) {
+    if( !available_tokens.count(uuid) && !generator_threads.count(uuid) ) {
         message_value.SetString("[DONE]");
     } else if( available_tokens[uuid].size() > i ) {
         std::string text = available_tokens[uuid][i];
