@@ -180,7 +180,7 @@ int predict_text(
                     }
                 }
                 if ( params.verbosity_level > 0 ) {
-                    std::cout << tok << std::flush;
+                    std::cerr << tok << std::flush;
                 }
             }
             if(contains_stop(generated_text, params.stop)) {
