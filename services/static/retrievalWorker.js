@@ -6,6 +6,7 @@ const retrievalPromise = function (uuid, index) {
             http.setRequestHeader("Content-type", "application/json; charset=utf-8");
             http.onload = function () {
                 var text = this.responseText
+                console.log(text);
                 if ( text === "[DONE]") {
                     self.postMessage(text);
                     resolve("done");
