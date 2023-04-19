@@ -107,7 +107,7 @@ int predict_text(
         available_tokens[uuid].push_back("[DONE]");
         fprintf(stderr, "%s: error: prompt is too long (%d tokens, max %d)\n", __func__, (int) embd_inp.size(), n_ctx - 4);
         std::cout << "Prompt:\n" << prompt << std::flush;
-        return 1;
+        return 0;
     }
     int n_keep = (int)embd_inp.size();
     std::vector<llama_token> embd;
@@ -199,7 +199,6 @@ done_token:
     available_tokens[uuid].push_back("[DONE]");
     mtx.unlock();
     return 0;
-
 }
 
 void deploy_generation(
@@ -253,6 +252,11 @@ void fetch_tokens(
     if( available_tokens[uuid].size() > i ) {
         std::string text = available_tokens[uuid][i];
         message_value.SetString(text.c_str(), allocator);
+        if ( text == "[DONE]" ) {
+            generator_threads[uuid]->join();
+            delete generator_threads[uuid];
+            generator_threads.erase(uuid);
+        }
     } else {
         message_value.SetString("[BUSY]");
     }
