@@ -1,6 +1,3 @@
-[submodule "api_server/llama.cpp"]
-	path = api_server/llama.cpp
-	url = https://github.com/ggerganov/llama.cpp.git
 [submodule "api_server/koboldcpp"]
 	path = api_server/koboldcpp
 	url = https://github.com/LostRuins/koboldcpp
