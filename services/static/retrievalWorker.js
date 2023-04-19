@@ -6,8 +6,8 @@ const retrievalPromise = function (uuid, index) {
             http.setRequestHeader("Content-type", "application/json; charset=utf-8");
             http.onload = function () {
                 var text = this.responseText
-                console.log(text);
                 if ( text === "[DONE]") {
+                    console.log(text);
                     self.postMessage(text);
                     resolve("done");
                 } else if ( text === "[BUSY]") {
@@ -15,6 +15,7 @@ const retrievalPromise = function (uuid, index) {
                         setTimeout(resolve, 1000, "iterating");
                     });
                 } else {
+                    console.log(text);
                     self.postMessage(text);
                     retrievalPromise(uuid, index+1 ).then(function (state) {
                         setTimeout(resolve, 200, "iterating");
