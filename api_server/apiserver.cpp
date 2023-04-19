@@ -258,6 +258,7 @@ void fetch_tokens(
             generator_threads[uuid]->join();
             delete generator_threads[uuid];
             generator_threads.erase(uuid);
+            available_tokens.erase(uuid);
         }
     } else {
         message_value.SetString("[BUSY]");
