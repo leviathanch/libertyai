@@ -220,13 +220,11 @@ def chatbot_stream():
             token = bot.get_part(uuid, index)
             if token == "[BUSY]":
                 time.sleep(1)
-                yield 'data: [KEEP_ALIVE]\n\n'
             else:
                 index += 1
-                yield 'data: {}\n\n'.format(token)
+            yield 'data: {}\n\n'.format(token)
 
     return Response(eventStream(active_bots[current_user.id]), mimetype="text/event-stream")
-
 
 def liberty_llm():
     return LibertyLLM(
