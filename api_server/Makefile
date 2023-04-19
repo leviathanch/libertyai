@@ -1,11 +1,15 @@
-CXXFLAGS += -I llama.cpp
-CXXFLAGS += -I llama.cpp/examples
+CXXFLAGS += -I koboldcpp
+CXXFLAGS += -I koboldcpp/examples
 CXXFLAGS += -g -O0
+
 LDFLAGS += -lboost_system
 LDFLAGS += -lboost_thread
 LDFLAGS += -lboost_program_options
 LDFLAGS += -lpthread
+
 LDFLAGS += -lclblast
+LDFLAGS += -lOpenCL
+LDFLAGS += -lopenblas
 
 $(info I CXXFLAGS: $(CXXFLAGS))
 $(info I LDFLAGS: $(LDFLAGS))
@@ -13,11 +17,11 @@ $(info I LDFLAGS: $(LDFLAGS))
 all: apiserver
 
 llama:
-	cd llama.cpp && make LDFLAGS="$(LDFLAGS)" LLAMA_OPENBLAS=1 && cd ..
+	cd koboldcpp && make main LLAMA_CLBLAST=1 && cd ..
 
 apiserver: llama apiserver.cpp
-	$(CXX) $(CXXFLAGS) apiserver.cpp llama.cpp/ggml.o llama.cpp/llama.o llama.cpp/common.o -o apiserver $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) apiserver.cpp koboldcpp/ggml.o koboldcpp/llama.o koboldcpp/common.o -o apiserver $(LDFLAGS)
 
 clean:
 	rm -f apiserver
-	cd llama.cpp && make clean && cd ..
+	cd koboldcpp && make clean && cd ..
