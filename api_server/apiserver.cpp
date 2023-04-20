@@ -165,8 +165,11 @@ int predict_text(
             }
         }
         if ( !input_noecho || params.verbosity_level > 0 ) {
+            std::string tok = "";
             for (auto id : embd) {
-                std::string tok = llama_token_to_str(ctx, id);
+                std::string ptok = llama_token_to_str(ctx, id);
+                printf("%c, %x\n", ptok.c_str()[0]);
+                tok = ptok;
                 if ( !input_noecho ) {
                     generated_text += tok;
                     if(is_partial_stop(tok, params.stop)) {
@@ -176,7 +179,6 @@ int predict_text(
                         for(auto st: last_partial_stops) {
                             tmptok += st;
                         }
-                        std::cout << "Tmp tok"<< tmptok << std::flush;
                         if ( ! contains_stop(tmptok, params.stop) ) {
                             for(auto st: last_partial_stops) {
                                 available_tokens[uuid].push_back(st);
@@ -189,6 +191,7 @@ int predict_text(
                 if ( params.verbosity_level > 0 ) {
                     std::cout << tok << std::flush;
                 }
+                tok = "";
             }
             if(contains_stop(generated_text, params.stop)) {
                 last_partial_stops.clear();
