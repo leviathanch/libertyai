@@ -79,10 +79,17 @@ class LibertyChain(LLMChain, BaseModel):
         #    documents = self.vectordb.similarity_search_with_score(query=message, k=1)
         #    context = documents[0][0].page_content
         context = ""
-        chat_history = self.memory.load_memory_variables(inputs=[])['history']
-        #chat_summary = self.summary.load_memory_variables(inputs=[])['history']
-        chat_summary = ""
-        #chat_history = ""
+
+        if self.memory:
+            chat_history = self.memory.load_memory_variables(inputs=[])['history']
+        else:
+            chat_history = ""
+
+        if self.summary:
+            chat_summary = self.summary.load_memory_variables(inputs=[])['history']
+        else:
+            chat_summary = ""
+
         d = {
             'input': message,
             'history': chat_history,
@@ -115,18 +122,21 @@ class LibertyChain(LLMChain, BaseModel):
 
         try:
             text = self.llm.get_partial(uuid, index)
+            print(uuid, index, text)
         except:
             return "[DONE]"
 
         if text == "[DONE]":
-            self.memory.save_context(
-                inputs = {self.human_prefix: self.hash_table[uuid]['message'].strip()},
-                outputs = {self.ai_prefix: self.hash_table[uuid]['reply'].strip()}
-            )
-            self.summary.save_context(
-                inputs = {self.human_prefix: self.hash_table[uuid]['message'].strip()},
-                outputs = {self.ai_prefix: self.hash_table[uuid]['reply'].strip()}
-            )
+            if self.memory:
+                self.memory.save_context(
+                    inputs = {self.human_prefix: self.hash_table[uuid]['message'].strip()},
+                    outputs = {self.ai_prefix: self.hash_table[uuid]['reply'].strip()}
+                )
+            if self.summary:
+                self.summary.save_context(
+                    inputs = {self.human_prefix: self.hash_table[uuid]['message'].strip()},
+                    outputs = {self.ai_prefix: self.hash_table[uuid]['reply'].strip()}
+                )
             del self.hash_table[uuid]
         elif text != "[BUSY]":
             self.hash_table[uuid]['reply'] += text

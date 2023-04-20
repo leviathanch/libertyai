@@ -24,10 +24,10 @@ def initialize_chatbot(**kwargs: Any) -> LibertyChain:
     main_llm = kwargs['llm']
     main_emb = kwargs['emb']
 
-    sum_mem = ConversationSummaryMemory(
-        ai_prefix = "LibertyAI",
-        llm = main_llm,
-    )
+    #sum_mem = ConversationSummaryMemory(
+    #    ai_prefix = "LibertyAI",
+    #    llm = main_llm,
+    #)
     
     conv_mem = ConversationBufferWindowMemory(
         ai_prefix = "LibertyAI",
@@ -37,7 +37,8 @@ def initialize_chatbot(**kwargs: Any) -> LibertyChain:
     vecdb = get_vector_db()
 
     chain = LibertyChain(
-        summary = sum_mem,
+        #summary = sum_mem,
+        summary = None,
         memory = conv_mem,
         llm = main_llm,
         mrkl = get_zero_shot_agent( main_llm ),
