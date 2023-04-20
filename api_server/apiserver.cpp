@@ -184,6 +184,7 @@ int predict_text(
                 }
             }
             if(contains_stop(generated_text, params.stop)) {
+                last_partial_stops.clear();
                 break;
             }
         }
