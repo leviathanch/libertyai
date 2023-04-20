@@ -47,13 +47,7 @@ std::map<std::string, std::thread*> generator_threads;
 std::map<std::string, std::vector<std::string>> available_tokens;
 
 std::vector<std::string> last_partial_stops;
-
-void print_hex(const char *s)
-{
-  while(*s)
-    printf("%02x", (unsigned int) *s++);
-  printf("\n");
-}
+std::vector<std::string> last_partial_special;
 
 struct liberty_args {
     std::string model;
@@ -96,7 +90,7 @@ bool is_partial_stop(std::string text, std::vector<std::string> tokens) {
 
 bool contains_special(std::string text) {
     for(int i=0; i<text.size(); i++) {
-        if( ( text[i] & 0xffffff00 ) != 0 ) {
+        if( ( text[i] & 0xffffff00 ) == 0xffffff00 ) {
             return true;
         }
     }
@@ -110,7 +104,7 @@ int predict_text(
         std::string prompt
     )
 {
-    std::string generated_text = "";
+    std::stringstream generated_text;
 
     bool input_noecho  = params.input_noecho;
     int n_past     = 0;
@@ -181,39 +175,43 @@ int predict_text(
             }
         }
         if ( !input_noecho || params.verbosity_level > 0 ) {
-            std::string tok = "";
             for (auto id : embd) {
-                std::string ptok = llama_token_to_str(ctx, id);
-                if ( contains_special(ptok) ) {
-                    tok += ptok;
-                    continue;
-                } else {
-                    tok = ptok;
-                }
+                std::string substr = llama_token_to_str(ctx, id);
                 if ( !input_noecho ) {
-                    generated_text += tok;
-                    if(is_partial_stop(tok, params.stop)) {
-                        last_partial_stops.push_back(tok);
+                    generated_text << substr;
+                    if(contains_special(substr)) {
+                        last_partial_special.push_back(substr);
                     } else {
-                        std::string tmptok;
-                        for(auto st: last_partial_stops) {
-                            tmptok += st;
-                        }
-                        if ( ! contains_stop(tmptok, params.stop) ) {
-                            for(auto st: last_partial_stops) {
-                                available_tokens[uuid].push_back(st);
+                        std::stringstream tmptok;
+                        if(last_partial_special.size()) {
+                            for(auto st: last_partial_special) {
+                                tmptok << st;
                             }
-                            available_tokens[uuid].push_back(tok);
-                            last_partial_stops.clear();
+                            last_partial_special.clear();
+                            available_tokens[uuid].push_back(tmptok.str());
+                        }
+                        if(is_partial_stop(substr, params.stop)) {
+                            last_partial_stops.push_back(substr);
+                        } else {
+                            std::stringstream tmptok;
+                            for(auto st: last_partial_stops) {
+                                tmptok << st;
+                            }
+                            if ( ! contains_stop(tmptok.str(), params.stop) ) {
+                                for(auto st: last_partial_stops) {
+                                    available_tokens[uuid].push_back(st);
+                                }
+                                available_tokens[uuid].push_back(substr);
+                                last_partial_stops.clear();
+                            }
                         }
                     }
                 }
                 if ( params.verbosity_level > 0 ) {
-                    std::cout << tok << std::flush;
+                    std::cout << substr << std::flush;
                 }
-                tok = "";
             }
-            if(contains_stop(generated_text, params.stop)) {
+            if(contains_stop(generated_text.str(), params.stop)) {
                 last_partial_stops.clear();
                 break;
             }
