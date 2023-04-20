@@ -172,11 +172,18 @@ int predict_text(
                     if(is_partial_stop(tok, params.stop)) {
                         last_partial_stops.push_back(tok);
                     } else {
+                        std::string tmptok;
                         for(auto st: last_partial_stops) {
-                            available_tokens[uuid].push_back(st);
+                            tmptok += st;
                         }
-                        last_partial_stops.clear();
-                        available_tokens[uuid].push_back(tok);
+                        std::cout << "Tmp tok"<< tmptok << std::flush;
+                        if ( ! contains_stop(tmptok, params.stop) ) {
+                            for(auto st: last_partial_stops) {
+                                available_tokens[uuid].push_back(st);
+                            }
+                            available_tokens[uuid].push_back(tok);
+                            last_partial_stops.clear();
+                        }
                     }
                 }
                 if ( params.verbosity_level > 0 ) {
