@@ -48,6 +48,13 @@ std::map<std::string, std::vector<std::string>> available_tokens;
 
 std::vector<std::string> last_partial_stops;
 
+void print_hex(const char *s)
+{
+  while(*s)
+    printf("%02x", (unsigned int) *s++);
+  printf("\n");
+}
+
 struct liberty_args {
     std::string model;
     std::vector<std::string> stop;
@@ -81,6 +88,15 @@ bool is_partial_stop(std::string text, std::vector<std::string> tokens) {
             continue;
         }
         if( token.find(text) != std::string::npos ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool contains_special(std::string text) {
+    for(int i=0; i<text.size(); i++) {
+        if( ( text[i] & 0xffffff00 ) != 0 ) {
             return true;
         }
     }
@@ -168,8 +184,12 @@ int predict_text(
             std::string tok = "";
             for (auto id : embd) {
                 std::string ptok = llama_token_to_str(ctx, id);
-                printf("%c, %x\n", ptok.c_str()[0]);
-                tok = ptok;
+                if ( contains_special(ptok) ) {
+                    tok += ptok;
+                    continue;
+                } else {
+                    tok = ptok;
+                }
                 if ( !input_noecho ) {
                     generated_text += tok;
                     if(is_partial_stop(tok, params.stop)) {

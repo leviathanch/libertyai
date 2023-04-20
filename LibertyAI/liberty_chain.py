@@ -101,13 +101,16 @@ class LibertyChain(LLMChain, BaseModel):
             #'user_mail': self.user_mail,
         }
 
-        match detect(message):
-            case 'de':
-                self.prompt = DE_PROMPT
-            case 'en':
-                self.prompt = EN_PROMPT
-            case _:
-                self.prompt = EN_PROMPT
+        try:
+            match detect(message):
+                case 'de':
+                    self.prompt = DE_PROMPT
+                case 'en':
+                    self.prompt = EN_PROMPT
+                case _:
+                    self.prompt = EN_PROMPT
+        except:
+            self.prompt = EN_PROMPT
 
         uuid = self.llm.submit_partial(self.prep_prompts([d])[0][0].text, stop = ["\nHuman:", " \n"])
         self.hash_table[uuid] = {
