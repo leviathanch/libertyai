@@ -105,6 +105,7 @@ def login_post():
             email=user.email,
             llm = llm,
             emb = emb,
+            sqlstring = SQLALCHEMY_DATABASE_URI,
         )
         return redirect(url_for('chatbot'))
     else:
@@ -178,12 +179,39 @@ def logout():
 def load_user(user_id):
     return User.query.filter_by(id=user_id).first()
 
+# ------------------------
+@app.route("/voicechat")
+@login_required
+def voicechat():
+    return render_template("voicechat.html", username=current_user.name)
+
+@app.route('/voicechat/submit', methods=['POST'])
+@login_required
+def post_voicechat_submit():
+    if 'audio_data' in request.files:
+        print(request.files['audio_data'])
+
+    print("Got message")
+    return "OK"
+
+# ------------------------
 @app.route("/chatbot")
 @login_required
 def chatbot():
     return render_template("chatbot.html", username=current_user.name)
 
-# ------------------------
+@app.route("/chatbot/get_chat_history")
+@login_required
+def chatbot_get_chat_history():
+    if current_user.id not in active_bots:
+        active_bots[current_user.id] = initialize_chatbot(
+            name = current_user.name,
+            email = current_user.email,
+            llm = llm,
+            emb = emb,
+            sqlstring = SQLALCHEMY_DATABASE_URI,
+        )
+    return active_bots[current_user.id].chat_history()
 
 @app.route("/chatbot/start_generation")
 @login_required
@@ -199,6 +227,7 @@ def chatbot_start_generation():
             email = current_user.email,
             llm = llm,
             emb = emb,
+            sqlstring = SQLALCHEMY_DATABASE_URI,
         )
 
     uuid = active_bots[current_user.id].start_generations(message)
@@ -225,6 +254,8 @@ def chatbot_stream():
                 yield 'data: {}\n\n'.format(token)
 
     return Response(eventStream(active_bots[current_user.id]), mimetype="text/event-stream")
+
+# --------
 
 def liberty_llm():
     return LibertyLLM(

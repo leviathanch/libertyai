@@ -200,3 +200,31 @@ form {
 .footer a {
     color: #d9d9d9;
 }
+
+/*
+ * Voice chat
+ */
+#voicebox {
+    display: block;
+}
+
+#canvas {
+    width: 100%;
+    height: 100%;
+}
+
+#recordAudio {
+    margin: auto;
+    display: block;
+    border-radius: 20px;
+    width: 100px;
+}
+
+#recordAudio:hover {
+    color: #d9d9d9;
+}
+
+#recorder.active {
+    color: #d9d9d9;
+    background-color: #666666;
+}

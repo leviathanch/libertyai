@@ -28,93 +28,18 @@
 <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
 <script src="{{ url_for('static', filename='chatbot.js') }}"></script>
 <script>
-
-function getBotResponse() {
-    if ($("#textInput").val()==="") {
-        return 0;
-    }
-
-    var rawText = $("#textInput").val() //.split("\n").join("<br/>");
-    $("#textInput").val("");
-
-    var chatWorkObject = getChatWorkObject();
-    var newField = getChatDiv(
-        chatWorkObject,
-        "dark:bg-gray-800",
-        "{{ url_for('static', filename='default_human.png') }}",
-        "{{ username }}"
-    );
-    $("#chatbox").append(newField);
-
-    chatWorkObject.innerHTML = rawText;
-    var chatBotWorkObject = getChatWorkObject();
-    var newChatBotField = getChatDiv(
-        chatBotWorkObject,
-        "bg-gray-50 dark:bg-[#444654]",
-        "{{ url_for('static', filename='avatar.png') }}",
-        "LibertyAI"
-    );
-    $("#chatbox").append(newChatBotField);
-    var txt = document.createElement("div");
-    txt.classList.add("blinkyChat");
-    chatBotWorkObject.append(txt);
-    $.get("/chatbot/start_generation", { msg: rawText }).done( function(uuid) {
-        var eventSource = new EventSource("/chatbot/stream?uuid="+uuid);
-        eventSource.onmessage = function(e) {
-            console.log(e.data);
-            if ( e.data === "[DONE]") {
-                this.close();
-                txt.classList.replace("blinkyChat", "normalChat");
-            } else if ( e.data !== "[BUSY]") {
-                addToTypeWriterQueue(uuid, e);
-            }
-        };
-        startTypeWriterJob(uuid, txt);
-    });
+function get_user_name() {
+    return "{{ username }}";
 }
 
-document.getElementById('textInput').addEventListener('keydown', function (e) {
-    const keyCode = e.which || e.keyCode;
-    if (keyCode === 13 && !e.shiftKey) {
-        e.preventDefault();
-        getBotResponse();
-        this.style.height = 0;
-        this.style.height = (this.scrollHeight) + "px";
-    }
-});
+function get_human_avatar() {
+    return "{{ url_for('static', filename='default_human.png') }}";
+}
 
-document.getElementById('textInput').addEventListener('input', function () {
-    this.style.height = 0;
-    this.style.height = (this.scrollHeight) + "px";
-    document.getElementById("emojiPicker").style.display = "none";
-});
+function get_liberty_avatar() {
+    return "{{ url_for('static', filename='avatar.png') }}";
+}
 
-$("#buttonInput").click(function() {
-    getBotResponse();
-});
-
-$("#textInput").click(function() {
-    document.getElementById("emojiPicker").style.display = "none";
-});
-
-$("#buttonEmoji").click(function() {
-    var visible = document.getElementById("emojiPicker").style.display;
-    if ( visible === "none" ) {
-        visible = "block";
-    } else if ( visible === "block" ) {
-        visible = "none";
-    }
-    document.getElementById("emojiPicker").style.display = visible;
-});
-
-document.querySelector('emoji-picker').addEventListener('emoji-click', e => {
-    var cursorPos = $('#textInput').prop('selectionStart');
-    var v = $('#textInput').val();
-    var textBefore = v.substring(0,  cursorPos);
-    var textAfter  = v.substring(cursorPos, v.length);
-    $('#textInput').val(textBefore + e.detail.unicode + textAfter);
-});
-  
 </script>
 
 {% endblock %}

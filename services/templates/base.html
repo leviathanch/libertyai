@@ -24,6 +24,7 @@
                     <nav class="nav nav-masthead justify-content-right">
                         {% if current_user.is_authenticated %}
                             <a href="{{ url_for('chatbot') }}" class="nav-link">Chatbot</a>
+                            <a href="{{ url_for('voicechat') }}" class="nav-link">Voice chat</a>
                             <a href="{{ url_for('profile') }}" class="nav-link">Profile</a>
                             <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
                         {% else %}

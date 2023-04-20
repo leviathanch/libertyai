@@ -23,9 +23,13 @@ from datetime import datetime
 from sentence_transformers import util
 from langdetect import detect
 
+import langchain
+
 from langchain.chains.llm import LLMChain
 from langchain.memory.buffer import ConversationBufferMemory
 from langchain.memory import ConversationSummaryMemory
+from langchain.memory import PostgresChatMessageHistory
+
 from langchain.prompts.base import BasePromptTemplate
 from langchain.schema import BaseMemory
 from langchain.agents.agent import AgentExecutor
@@ -48,6 +52,7 @@ class LibertyChain(LLMChain, BaseModel):
     user_mail: str = ""
     embeddings: LibertyEmbeddings = None
     vectordb: PGVector = None
+    pghistory: PostgresChatMessageHistory = None
 
     class Config:
         """Configuration for this pydantic object."""
@@ -139,8 +144,23 @@ class LibertyChain(LLMChain, BaseModel):
                     inputs = {self.human_prefix: self.hash_table[uuid]['message'].strip()},
                     outputs = {self.ai_prefix: self.hash_table[uuid]['reply'].strip()}
                 )
+            if self.pghistory:
+                self.pghistory.add_user_message(self.hash_table[uuid]['message'].strip())
+                self.pghistory.add_ai_message(self.hash_table[uuid]['reply'].strip())
+
             del self.hash_table[uuid]
+
         elif text != "[BUSY]":
             self.hash_table[uuid]['reply'] += text
 
         return text
+
+    def chat_history(self):
+        ret = []
+        if self.pghistory:
+            for message in self.pghistory.messages:
+                if type(message) == langchain.schema.HumanMessage:
+                    ret.append({'Human': message.content})
+                if type(message) == langchain.schema.AIMessage:
+                    ret.append({'LibertyAI': message.content})
+        return ret

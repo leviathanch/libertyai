@@ -26,7 +26,7 @@ config = {
 }
 
 var AudioContext = window.AudioContext || window.webkitAudioContext;
-var playing = false, startedAt, pausedAt;
+var recording = false;
 
 (function() {
     if (!AudioContext) {
@@ -47,7 +47,6 @@ function initializeAudio() {
         true
     );
     xmlHTTP.responseType = "arraybuffer";
-
     xmlHTTP.onload = function(e) {
         console.log("Decoding Audio File Data");
 
@@ -55,33 +54,26 @@ function initializeAudio() {
             this.response,
             function(buffer) {
                 console.log("Ready");
-                document.getElementById("info").innerHTML = "- Ready! Click anywhere to play or pause -";
-                setTimeout(function(){document.getElementById("info").style.display = "none"}, 4000);
                 audioBuffer = buffer;
-                
                 // Run
                 analyser = actx.createAnalyser();
                 analyser.fftSize = 256;
                 analyser.smoothingTimeConstant = 0.6;
                 analyser.maxDecibels = 0;
                 analyser.minDecibels = -100;
-
                 gainNode = actx.createGain();
                 gainNode.connect(analyser);
                 analyser.connect(actx.destination);
                 frequencyDataLen = analyser.frequencyBinCount;
                 frequencyData = new Uint8Array(frequencyDataLen);
-
-                clear();//play();
-                canvas.addEventListener("click", toggleAudio);
-                canvas.addEventListener("touchdown", toggleAudio);
+                clear();
+                //play();
             },
             function() {
                 console.log("Error decoding audio data");
             }
         );
     };
-
     xmlHTTP.send();
 }
 
@@ -233,7 +225,6 @@ function drawSpectrum() {
 }
 
 function render() {
-    //if (!playing) return;
     clear();
     drawDots();
     drawSpectrum();
@@ -241,33 +232,16 @@ function render() {
     requestAnimationFrame(render);
 }
 
-function toggleAudio() {
-    playing?pause():play();
-}
-
 function play() {
     dotEmitter = setInterval(emitDot, 50);
     lineEmitter = setInterval(emitLine, 100);
-    startedAt = pausedAt ? Date.now() - pausedAt : Date.now();
     bufferSource = null;
     bufferSource = actx.createBufferSource();
     bufferSource.buffer = audioBuffer;
     bufferSource.loop = true;
     bufferSource.connect(gainNode);
-
-    if (pausedAt) bufferSource.start(0, pausedAt / 1000);
-    else bufferSource.start();
-    
-    playing = true;
+    bufferSource.start();
     render();
-}
-
-function pause() {
-    clearInterval(dotEmitter);
-    clearInterval(lineEmitter);
-    pausedAt = Date.now() - startedAt;
-    bufferSource.stop();
-    playing = false;
 }
 
 function lerp(x1, x2, n){
@@ -287,3 +261,56 @@ function averageFrequency() {
     }
     return avg;
 }
+
+var constraints = {
+    audio: true,
+    video: false
+} 
+
+var gumStream;
+//stream from getUserMedia() 
+var rec;
+//Recorder.js object 
+var input;
+//MediaStreamAudioSourceNode we'll be recording 
+// shim for AudioContext when it's not avb. 
+var AudioContext = window.AudioContext || window.webkitAudioContext;
+var audioRecordingContext;
+
+function uploadRecording(blob) {
+    var filename = new Date().toISOString();
+    var xhr = new XMLHttpRequest();
+    xhr.onload = function(e) {
+        if (this.readyState === 4) {
+            console.log("Server returned: ", e.target.responseText);
+        }
+    };
+    var fd = new FormData();
+    fd.append("audio_data", blob, filename);
+    xhr.open("POST", "/voicechat/submit", true);
+    xhr.send(fd);
+}
+
+navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+    audioRecordingContext = new AudioContext;
+    gumStream = stream;
+    input = audioRecordingContext.createMediaStreamSource(stream);
+    rec = new Recorder(input, {numChannels: 1});   
+});
+
+function toggleRecording() {
+    if(recording) {
+        recording = false;
+        rec.stop();
+        document.getElementById("recorder").classList.remove('active');
+        gumStream.getAudioTracks()[0].stop();
+        rec.exportWAV(uploadRecording);
+    } else {
+        rec.record();
+        recording = true;
+        document.getElementById("recorder").classList.add('active');
+    }
+    //play();
+};
+
+document.getElementById("recordAudio").addEventListener("click", toggleRecording);

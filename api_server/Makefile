@@ -7,7 +7,7 @@ LDFLAGS += -lboost_thread
 LDFLAGS += -lboost_program_options
 LDFLAGS += -lpthread
 
-LDFLAGS += -lclblast
+#LDFLAGS += -lclblast
 LDFLAGS += -lOpenCL
 LDFLAGS += -lopenblas
 

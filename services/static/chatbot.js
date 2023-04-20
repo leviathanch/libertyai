@@ -126,3 +126,115 @@ function startTypeWriterJob(hash, workerObject) {
     queues[hash]=[]
     recursiveQueueJob(hash, workerObject);
 };
+
+function getBotResponse() {
+    if ($("#textInput").val()==="") {
+        return 0;
+    }
+    var rawText = $("#textInput").val();
+    $("#textInput").val("");
+    var chatWorkObject = getChatWorkObject();
+    var newField = getChatDiv(
+        chatWorkObject,
+        "dark:bg-gray-800",
+        get_human_avatar(),
+        get_user_name()
+    );
+    $("#chatbox").append(newField);
+    chatWorkObject.innerHTML = rawText;
+    var chatBotWorkObject = getChatWorkObject();
+    var newChatBotField = getChatDiv(
+        chatBotWorkObject,
+        "bg-gray-50 dark:bg-[#444654]",
+        get_liberty_avatar(),
+        "LibertyAI"
+    );
+    $("#chatbox").append(newChatBotField);
+    var txt = document.createElement("div");
+    txt.classList.add("blinkyChat");
+    chatBotWorkObject.append(txt);
+    $.get("/chatbot/start_generation", { msg: rawText }).done( function(uuid) {
+        var eventSource = new EventSource("/chatbot/stream?uuid="+uuid);
+        eventSource.onmessage = function(e) {
+            console.log(e.data);
+            if ( e.data === "[DONE]") {
+                this.close();
+                txt.classList.replace("blinkyChat", "normalChat");
+            } else if ( e.data !== "[BUSY]") {
+                addToTypeWriterQueue(uuid, e);
+            }
+        };
+        startTypeWriterJob(uuid, txt);
+    });
+}
+
+document.querySelector('emoji-picker').addEventListener('emoji-click', e => {
+    var cursorPos = $('#textInput').prop('selectionStart');
+    var v = $('#textInput').val();
+    var textBefore = v.substring(0,  cursorPos);
+    var textAfter  = v.substring(cursorPos, v.length);
+    $('#textInput').val(textBefore + e.detail.unicode + textAfter);
+});
+
+document.getElementById('textInput').addEventListener('keydown', function (e) {
+    const keyCode = e.which || e.keyCode;
+    if (keyCode === 13 && !e.shiftKey) {
+        e.preventDefault();
+        getBotResponse();
+        this.style.height = 0;
+        this.style.height = (this.scrollHeight) + "px";
+    }
+});
+
+document.getElementById('textInput').addEventListener('click', function() {
+    document.getElementById("emojiPicker").style.display = "none";
+});
+
+document.getElementById('buttonEmoji').addEventListener('click', function() {
+    var visible = document.getElementById("emojiPicker").style.display;
+    if ( visible === "none" ) {
+        visible = "block";
+    } else if ( visible === "block" ) {
+        visible = "none";
+    }
+    document.getElementById("emojiPicker").style.display = visible;
+});
+
+document.getElementById('textInput').addEventListener('input', function () {
+    this.style.height = 0;
+    this.style.height = (this.scrollHeight) + "px";
+    document.getElementById("emojiPicker").style.display = "none";
+});
+
+document.getElementById('buttonInput').addEventListener('click', function() {
+    getBotResponse();
+});
+
+window.onload = function(e){
+$.get("/chatbot/get_chat_history").done( function(history) {
+        for (let i = 0; i < history.length; i++) {
+            if (history[i]['Human']) {
+                var chatWorkObject = getChatWorkObject();
+                var newField = getChatDiv(
+                    chatWorkObject,
+                    "dark:bg-gray-800",
+                    get_human_avatar(),
+                    get_user_name()
+                );
+                $("#chatbox").append(newField);
+                chatWorkObject.innerHTML = history[i]['Human'];
+            }
+            if (history[i]['LibertyAI']) {
+                var chatWorkObject = getChatWorkObject();
+                var newField = getChatDiv(
+                    chatWorkObject,
+                    "bg-gray-50 dark:bg-[#444654]",
+                    get_liberty_avatar(),
+                    "LibertyAI"
+                );
+                $("#chatbox").append(newField);
+                chatWorkObject.innerHTML = history[i]['LibertyAI']
+            }
+        }
+    });
+}
