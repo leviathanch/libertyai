@@ -122,7 +122,6 @@ class LibertyChain(LLMChain, BaseModel):
 
         try:
             text = self.llm.get_partial(uuid, index)
-            print(uuid, index, text)
         except:
             return "[DONE]"
 
