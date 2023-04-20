@@ -109,7 +109,7 @@ class LibertyChain(LLMChain, BaseModel):
             case _:
                 self.prompt = EN_PROMPT
 
-        uuid = self.llm.submit_partial(self.prep_prompts([d])[0][0].text, stop = ["Human:", " \n"])
+        uuid = self.llm.submit_partial(self.prep_prompts([d])[0][0].text, stop = ["\nHuman:", " \n"])
         self.hash_table[uuid] = {
             'message': message,
             'reply': ""
