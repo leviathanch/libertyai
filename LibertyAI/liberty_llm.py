@@ -67,7 +67,6 @@ class LibertyLLM(LLM):
                 json = jsd,
             )
             reply = response.json()
-            print(uuid, index, reply)
         except:
             return "[DONE]"
 
