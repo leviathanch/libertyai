@@ -7,9 +7,9 @@ LDFLAGS += -lboost_thread
 LDFLAGS += -lboost_program_options
 LDFLAGS += -lpthread
 
-#LDFLAGS += -lclblast
 LDFLAGS += -lOpenCL
 LDFLAGS += -lopenblas
+LDFLAGS += -L/usr/local/cuda-12.1/targets/x86_64-linux/lib -lcublas_static -lculibos -lcudart_static -lcublasLt_static
 
 $(info I CXXFLAGS: $(CXXFLAGS))
 $(info I LDFLAGS: $(LDFLAGS))
@@ -17,10 +17,10 @@ $(info I LDFLAGS: $(LDFLAGS))
 all: apiserver
 
 llama:
-	cd koboldcpp && make main LLAMA_CLBLAST=1 && cd ..
+	cd koboldcpp && make main LLAMA_CUBLAS=1 && cd ..
 
 apiserver: llama apiserver.cpp
-	$(CXX) $(CXXFLAGS) apiserver.cpp koboldcpp/ggml.o koboldcpp/llama.o koboldcpp/common.o -o apiserver $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) apiserver.cpp koboldcpp/ggml.o koboldcpp/ggml-cuda.o koboldcpp/llama.o koboldcpp/common.o -o apiserver $(LDFLAGS)
 
 clean:
 	rm -f apiserver
