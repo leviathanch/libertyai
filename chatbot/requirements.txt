@@ -2,3 +2,9 @@ wheel
 uwsgi
 flask
 gevent
+flask
+flask-login
+flask-sqlalchemy
+flask_migrate
+flask_script
+flask_session
