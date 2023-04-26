@@ -254,6 +254,9 @@ def chatbot_stream():
     except:
         return Response('data: [DONE]\n\n', mimetype="text/event-stream")
 
+    if current_user.id not in active_bots:
+        return Response('data: [DONE]\n\n', mimetype="text/event-stream")
+
     def eventStream(bot):
         index = 0
         token = ""
