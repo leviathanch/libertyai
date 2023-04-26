@@ -12,7 +12,6 @@ setup(
     packages=['LibertyAI'],
     scripts=[
         'services/liberty_api_server.py',
-        'services/liberty_flask_chatbot.py',
     ],
     url='https://redmine.libresilicon.com/projects/danube-river',
     license='LICENSE.txt',
