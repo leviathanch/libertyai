@@ -1,0 +1,14 @@
+[Unit]
+Description=uWSGI instance for the LibertyAI chatbot
+After=network.target
+
+[Service]
+User=debian
+Group=www-data
+WorkingDirectory=LIBERTYAI_PATH/chatbot
+Environment="PATH=LIBERTYAI_PATH/chatbot/chatbotenv/bin"
+ExecStart=LIBERTYAI_PATH/chatbot/chatbotenv/bin/uwsgi --ini chatbot.ini
+
+[Install]
+WantedBy=multi-user.target
+
