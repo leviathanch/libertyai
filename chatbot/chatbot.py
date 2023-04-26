@@ -90,6 +90,9 @@ emb = LibertyEmbeddings(
     endpoint = config.get('API', 'EMBEDDING_ENDPOINT'),
 )
 
+active_bots = {}
+active_conversations = {}
+
 # ------------------------
 @app.route("/")
 def home():
@@ -267,7 +270,5 @@ def chatbot_stream():
 # --------
 
 if __name__ == "__main__":
-    active_bots = {}
-    active_conversations = {}
     http_server = WSGIServer(('',5000), app)
     http_server.serve_forever()
