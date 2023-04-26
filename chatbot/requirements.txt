@@ -1,0 +1,4 @@
+wheel
+uwsgi
+flask
+gevent
