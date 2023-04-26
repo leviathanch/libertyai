@@ -81,6 +81,15 @@ login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
 
+
+llm = LibertyLLM(
+    endpoint = config.get('API', 'GENERATION_ENDPOINT'),
+)
+
+emb = LibertyEmbeddings(
+    endpoint = config.get('API', 'EMBEDDING_ENDPOINT'),
+)
+
 # ------------------------
 @app.route("/")
 def home():
@@ -257,19 +266,7 @@ def chatbot_stream():
 
 # --------
 
-def liberty_llm():
-    return LibertyLLM(
-        endpoint = config.get('API', 'GENERATION_ENDPOINT'),
-    )
-
-def liberty_embedding():
-    return LibertyEmbeddings(
-        endpoint = config.get('API', 'EMBEDDING_ENDPOINT'),
-    )
-
 if __name__ == "__main__":
-    llm = liberty_llm()
-    emb = liberty_embedding()
     active_bots = {}
     active_conversations = {}
     http_server = WSGIServer(('',5000), app)
