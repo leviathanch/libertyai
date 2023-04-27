@@ -76,14 +76,14 @@ class LibertyChain(LLMChain, BaseModel):
         #if mrkl:
         #    context = mrkl.run(message)
 
-        #encoded1 = self.embeddings.embed_query(message)
-        #encoded2 = self.embeddings.embed_query("What's the weather in X?")
-        #if util.pytorch_cos_sim(encoded1, encoded2)[0] > 0.5:
-        #    context = self.mrkl.run(message)
+        encoded1 = self.embeddings.embed_query(message)
+        encoded2 = self.embeddings.embed_query("What's the weather in X?")
+        context = ""
+        if util.pytorch_cos_sim(encoded1, encoded2)[0] > 0.5:
+            context = self.mrkl.run(message)
         #else:
         #    documents = self.vectordb.similarity_search_with_score(query=message, k=1)
         #    context = documents[0][0].page_content
-        context = ""
 
         if self.memory:
             chat_history = self.memory.load_memory_variables(inputs=[])['history']

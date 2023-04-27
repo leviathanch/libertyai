@@ -18,6 +18,8 @@
 #include <mutex>
 #include <chrono>
 
+#include <bits/stdc++.h>
+
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
@@ -39,6 +41,7 @@ using namespace rapidjson;
 namespace po = boost::program_options;
 
 std::mutex mtx;
+std::mutex emb_mtx;
 
 // all the running threads (uuid: thread):
 std::map<std::string, std::thread*> generator_threads;
@@ -62,6 +65,7 @@ struct liberty_args {
     int32_t n_ctx;
     bool input_noecho;
     int verbosity_level;
+    bool embedding;
 };
 
 bool contains_stop(std::string text, std::vector<std::string> tokens) {
@@ -229,6 +233,51 @@ int predict_text(
     return 0;
 }
 
+void generate_embedding(
+        llama_context *ctx,
+        liberty_args params,
+        std::string prompt,
+        StringBuffer& response_buffer
+    )
+{
+    emb_mtx.lock();
+    Document response;
+    response.SetObject();
+    Value message_value;
+
+    int n_past = 0;
+    auto embd_inp = ::llama_tokenize(ctx, prompt, true);
+    if (embd_inp.size() > 0) {
+        if (llama_eval(ctx, embd_inp.data(), embd_inp.size(), n_past, params.n_threads)) {
+            fprintf(stderr, "%s : failed to eval\n", __func__);
+            message_value.SetString("[]", response.GetAllocator());
+            response.AddMember("embedding", message_value, response.GetAllocator());
+            Writer<StringBuffer> writer(response_buffer);
+            response.Accept(writer);
+            return;
+        }
+    }
+    int n_embd = llama_n_embd(ctx);
+    auto embeddings = llama_get_embeddings(ctx);
+
+    std::stringstream retarr;
+    retarr << "[";
+    if( n_embd > 0 ) {
+        retarr << std::to_string(embeddings[0]);
+        for (int i = 1; i < n_embd; i++) {
+            retarr << "," << std::to_string(embeddings[i]);
+        }
+    }
+    retarr << "]";
+
+    message_value.SetString(retarr.str().c_str(), response.GetAllocator());
+    emb_mtx.unlock();
+
+    response.AddMember("embedding", message_value, response.GetAllocator());
+    Writer<StringBuffer> writer(response_buffer);
+    response.Accept(writer);
+}
+
 void deploy_generation(
         llama_context *ctx,
         liberty_args params,
@@ -241,11 +290,10 @@ void deploy_generation(
     Document response;
     response.SetObject();
     Value message_value;
-    rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
     uuid = boost::uuids::random_generator()();
     uuid_str << uuid;
     generator_threads[uuid_str.str()] = new std::thread(predict_text, ctx, params, uuid_str.str(), prompt);
-    message_value.SetString(uuid_str.str().c_str(), allocator);
+    message_value.SetString(uuid_str.str().c_str(), response.GetAllocator());
     response.AddMember("uuid", message_value, response.GetAllocator());
     Writer<StringBuffer> writer(response_buffer);
     response.Accept(writer);
@@ -258,7 +306,6 @@ void return_done(
     Document response;
     response.SetObject();
     Value message_value;
-    rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
     message_value.SetString("[DONE]");
     response.AddMember("text", message_value, response.GetAllocator());
     Writer<StringBuffer> writer(response_buffer);
@@ -275,13 +322,11 @@ void fetch_tokens(
     response.SetObject();
     Value message_value;
     int i = std::stoi(index);
-    rapidjson::Document::AllocatorType &allocator = response.GetAllocator();
-
     if( !available_tokens.count(uuid) && !generator_threads.count(uuid) ) {
         message_value.SetString("[DONE]");
     } else if( available_tokens[uuid].size() > i ) {
         std::string text = available_tokens[uuid][i];
-        message_value.SetString(text.c_str(), allocator);
+        message_value.SetString(text.c_str(), response.GetAllocator());
         if ( text == "[DONE]" ) {
             generator_threads[uuid]->join();
             delete generator_threads[uuid];
@@ -299,6 +344,7 @@ void fetch_tokens(
 
 void handle_request(
         llama_context *ctx,
+        llama_context *emb_ctx,
         liberty_args& params,
         boost::asio::ip::tcp::socket& socket,
         StringBuffer& response_buffer
@@ -323,6 +369,7 @@ void handle_request(
             new_params.n_threads = params.n_threads;
             new_params.input_noecho = params.input_noecho;
             new_params.model = params.model;
+            new_params.embedding = false;
             new_params.top_k = (doc.HasMember("top_k") && doc["top_k"].IsString()) ? std::stoi(doc["top_k"].GetString()) : params.top_k;
             new_params.top_p = (doc.HasMember("top_p") && doc["top_p"].IsString()) ? std::stof(doc["top_p"].GetString()) : params.top_p;
             new_params.repeat_last_n = (doc.HasMember("repeat_last_n") && doc["repeat_last_n"].IsString()) ? std::stoi(doc["repeat_last_n"].GetString()) : params.repeat_last_n;
@@ -356,6 +403,17 @@ void handle_request(
         } else {
             return_done(response_buffer);
         }
+    } else if (request.method() == boost::beast::http::verb::post && request.target() == "/api/embedding") {
+        if (doc.HasMember("text") && doc["text"].IsString()) {
+            liberty_args new_params;
+            new_params.n_threads = params.n_threads;
+            new_params.input_noecho = params.input_noecho;
+            new_params.model = params.model;
+            new_params.n_batch = params.n_batch;
+            new_params.embedding = true;
+            std::string text = doc["text"].GetString();
+            generate_embedding(emb_ctx, new_params, text, response_buffer);
+        }
     } else {
         std::cerr << "Invalid request: " << request.method_string() << " " << request.target() << std::endl;
         return_done(response_buffer);
@@ -370,6 +428,20 @@ llama_context *load_model(liberty_args& params) {
     lparams.seed       = time(NULL);
     lparams.f16_kv     = 2;
     lparams.use_mlock  = 0;
+    lparams.embedding  = false;
+    ctx = llama_init_from_file(params.model.c_str(), lparams);
+    return ctx;
+}
+
+llama_context *load_embedding(liberty_args& params) {
+    llama_context * ctx;
+    auto lparams = llama_context_default_params();
+    lparams.n_ctx      = params.n_ctx;
+    lparams.n_parts    = 1;
+    lparams.seed       = time(NULL);
+    lparams.f16_kv     = 2;
+    lparams.use_mlock  = 0;
+    lparams.embedding  = true;
     ctx = llama_init_from_file(params.model.c_str(), lparams);
     return ctx;
 }
@@ -424,6 +496,7 @@ bool parse_params(int ac, char ** av, liberty_args &params) {
 
 int main(int argc, char ** argv) {
     llama_context *ctx;
+    llama_context *emb_ctx;
     liberty_args params;
 
     if (parse_params(argc, argv, params) == false) {
@@ -437,6 +510,13 @@ int main(int argc, char ** argv) {
     // load the model
     ctx = load_model(params);
     if (ctx == NULL) {
+        fprintf(stderr, "%s: error: failed to load model '%s'\nUse -m for specifying your own model path!\n", __func__, params.model.c_str());
+        return 1;
+    }
+
+    // load the model
+    emb_ctx = load_embedding(params);
+    if (emb_ctx == NULL) {
         fprintf(stderr, "%s: error: failed to load model '%s'\nUse -m for specifying your own model path!\n", __func__, params.model.c_str());
         return 1;
     }
@@ -457,7 +537,7 @@ int main(int argc, char ** argv) {
 
         // Handle the request and generate a response
         StringBuffer response_buffer;
-        handle_request(ctx, params, socket, response_buffer);
+        handle_request(ctx, emb_ctx, params, socket, response_buffer);
 
         // Send the HTTP response back to the client
         std::string response_string = "HTTP/1.1 200 OK\r\n";
