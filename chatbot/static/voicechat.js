@@ -33,23 +33,21 @@ var recording = false;
         console.log("No Audio");
         return;
     }
-    initializeAudio();
+    //initializeAudio();
 })();
 
-function initializeAudio() {
+function initializeAudio(uuid) {
     actx = new AudioContext();
     console.log("Loading Audio Buffer");
-
     var xmlHTTP = new XMLHttpRequest();
     xmlHTTP.open(
         "GET",
-        "https://stream.beatstars.com/i/itsgold-171100/2036456/09d0393f7f1a3dcad1a48eb0e0f2a897.mp3",
+        "/voicechat/audio?uuid="+uuid,
         true
     );
     xmlHTTP.responseType = "arraybuffer";
     xmlHTTP.onload = function(e) {
         console.log("Decoding Audio File Data");
-
         actx.decodeAudioData(
             this.response,
             function(buffer) {
@@ -66,8 +64,7 @@ function initializeAudio() {
                 analyser.connect(actx.destination);
                 frequencyDataLen = analyser.frequencyBinCount;
                 frequencyData = new Uint8Array(frequencyDataLen);
-                clear();
-                //play();
+                play();
             },
             function() {
                 console.log("Error decoding audio data");
@@ -238,7 +235,7 @@ function play() {
     bufferSource = null;
     bufferSource = actx.createBufferSource();
     bufferSource.buffer = audioBuffer;
-    bufferSource.loop = true;
+    bufferSource.loop = false;
     bufferSource.connect(gainNode);
     bufferSource.start();
     render();
@@ -282,7 +279,15 @@ function uploadRecording(blob) {
     var xhr = new XMLHttpRequest();
     xhr.onload = function(e) {
         if (this.readyState === 4) {
-            console.log("Server returned: ", e.target.responseText);
+            var uuid = e.target.responseText;
+            var eventSource = new EventSource("/voicechat/stream?uuid="+uuid);
+            eventSource.onmessage = function(e) {
+                console.log(e.data);
+                if(e.data === "[DONE]") {
+                    initializeAudio(uuid);
+                    this.close();
+                }
+            };
         }
     };
     var fd = new FormData();
@@ -310,7 +315,6 @@ function toggleRecording() {
         recording = true;
         document.getElementById("recorder").classList.add('active');
     }
-    //play();
 };
 
 document.getElementById("recordAudio").addEventListener("click", toggleRecording);

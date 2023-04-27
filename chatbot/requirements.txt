@@ -9,3 +9,4 @@ flask-sqlalchemy
 flask_migrate
 flask_script
 flask_session
+gtts

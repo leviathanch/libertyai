@@ -1,6 +1,11 @@
 import mimetypes
 import os
 import time
+import requests
+import uuid
+
+from gtts import gTTS
+from io import BytesIO
 
 mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('application/javascript', '.ts')
@@ -20,6 +25,7 @@ from flask import (
     Response,
     session,
     g,
+    make_response,
 )
 
 from flask_session import Session
@@ -37,6 +43,10 @@ from werkzeug.security import (
     check_password_hash
 )
 
+from werkzeug.wsgi import wrap_file
+
+from werkzeug.utils import secure_filename
+
 from flask_sqlalchemy import SQLAlchemy
 
 from LibertyAI.liberty_chatbot import initialize_chatbot
@@ -44,8 +54,8 @@ from LibertyAI.liberty_config import get_configuration
 from LibertyAI.liberty_embedding import LibertyEmbeddings
 from LibertyAI.liberty_llm import LibertyLLM
 
-from langchain.llms import LlamaCpp
-from langchain.embeddings import LlamaCppEmbeddings
+#from langchain.llms import LlamaCpp
+#from langchain.embeddings import LlamaCppEmbeddings
 
 config = get_configuration()
 SQLALCHEMY_DATABASE_URI = 'postgresql://'
@@ -185,14 +195,65 @@ def load_user(user_id):
 def voicechat():
     return render_template("voicechat.html", username=current_user.name)
 
+current_audio_files = {}
+current_input_audio_files = {}
+
 @app.route('/voicechat/submit', methods=['POST'])
 @login_required
 def post_voicechat_submit():
     if 'audio_data' in request.files:
-        print(request.files['audio_data'])
+        uid = str(uuid.uuid1())
+        f = request.files['audio_data']
+        current_input_audio_files[uid]=f.read()
+        return uid
+    return "Error"
 
-    print("Got message")
-    return "OK"
+@app.route('/voicechat/stream')
+@login_required
+def voicechat_stream():
+    try:
+        uuid = request.args.get('uuid')
+    except:
+        return Response('data: [ERROR]\n\n', mimetype="text/event-stream")
+
+    def eventStream(uuid):
+        response = requests.post(
+            config.get('API', 'WHISPER_ENDPOINT'),
+            files = {'file': current_input_audio_files[uuid]},
+        )
+        language = 'en'
+        text = ''
+        reply = response.json()
+        if 'results' in reply:
+            for result in reply['results']:
+                language = result['language']
+                text = result['text']
+            onsei = gTTS(text=text, lang=language)
+            buf = BytesIO()
+            onsei.write_to_fp(buf)
+            current_audio_files[uuid] = buf.getvalue()
+            buf.close()
+            del current_input_audio_files[uuid]
+            yield 'data: [DONE]\n\n'
+
+        yield 'data: [ERROR]\n\n'
+
+    return Response(eventStream(uuid), mimetype="text/event-stream")
+
+@app.route('/voicechat/audio')
+@login_required
+def voicechat_audio():
+    try:
+        uuid = request.args.get('uuid')
+    except:
+        return "ERROR!"
+
+    response = make_response(current_audio_files[uuid])
+    response.headers['Content-Type'] = 'audio/wav'
+    response.headers['Content-Disposition'] = 'attachment; filename=sound.wav'
+    del current_audio_files[uuid]
+
+    return response
 
 # ------------------------
 @app.route("/chatbot")
