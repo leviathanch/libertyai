@@ -73,14 +73,13 @@ class LibertyChain(LLMChain, BaseModel):
             return {**inputs, **outputs}
 
     def start_generations(self, message):
-        #if mrkl:
-        #    context = mrkl.run(message)
-
         encoded1 = self.embeddings.embed_query(message)
         encoded2 = self.embeddings.embed_query("What's the weather in X?")
         context = ""
-        if util.pytorch_cos_sim(encoded1, encoded2)[0] > 0.5:
-            context = self.mrkl.run(message)
+
+        if self.mrkl:
+            if util.pytorch_cos_sim(encoded1, encoded2)[0] > 0.5:
+                context = self.mrkl.run(message)
         #else:
         #    documents = self.vectordb.similarity_search_with_score(query=message, k=1)
         #    context = documents[0][0].page_content

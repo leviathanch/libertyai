@@ -64,10 +64,10 @@ def get_zero_shot_agent(llm):
     tools.append(get_weather_tool())
     #tools.append(get_vector_db_tool())
     #tools.append(get_date_time_tool())
-    tools += load_tools(
-        ["searx-search"], searx_host="http://libergpt.univ.social/searx",
-        llm = llm,
-    )
+    #tools += load_tools(
+    #    ["searx-search"], searx_host="http://libergpt.univ.social/searx",
+    #    llm = llm,
+    #)
     mrkl = initialize_agent(
         tools,
         llm,

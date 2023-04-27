@@ -244,13 +244,13 @@ void generate_embedding(
     Document response;
     response.SetObject();
     Value message_value;
+    message_value.SetArray();
 
     int n_past = 0;
     auto embd_inp = ::llama_tokenize(ctx, prompt, true);
     if (embd_inp.size() > 0) {
         if (llama_eval(ctx, embd_inp.data(), embd_inp.size(), n_past, params.n_threads)) {
             fprintf(stderr, "%s : failed to eval\n", __func__);
-            message_value.SetString("[]", response.GetAllocator());
             response.AddMember("embedding", message_value, response.GetAllocator());
             Writer<StringBuffer> writer(response_buffer);
             response.Accept(writer);
@@ -259,18 +259,14 @@ void generate_embedding(
     }
     int n_embd = llama_n_embd(ctx);
     auto embeddings = llama_get_embeddings(ctx);
-
-    std::stringstream retarr;
-    retarr << "[";
+    auto& allocator = response.GetAllocator();
+    Value jsonvalue;
     if( n_embd > 0 ) {
-        retarr << std::to_string(embeddings[0]);
-        for (int i = 1; i < n_embd; i++) {
-            retarr << "," << std::to_string(embeddings[i]);
+        for (int i = 0; i < n_embd; i++) {
+            jsonvalue.SetFloat(embeddings[i]);
+            message_value.PushBack(Document(&allocator).CopyFrom(jsonvalue, allocator), allocator);
         }
     }
-    retarr << "]";
-
-    message_value.SetString(retarr.str().c_str(), response.GetAllocator());
     emb_mtx.unlock();
 
     response.AddMember("embedding", message_value, response.GetAllocator());
