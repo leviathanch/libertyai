@@ -18,7 +18,11 @@ from flask import (
     flash,
     send_from_directory,
     Response,
+    session,
+    g,
 )
+
+from flask_session import Session
 
 from flask_login import (
     login_required,
@@ -52,9 +56,13 @@ SQLALCHEMY_DATABASE_URI += config.get('DATABASE', 'PGSQL_SERVER_PORT') + '/'
 SQLALCHEMY_DATABASE_URI += config.get('DATABASE', 'PGSQL_DATABASE')
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret-key-goes-here'
+app.config['SECRET_KEY'] = config.get('DEFAULT', 'SECRET_KEY')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
+app.app_context().push()
+
+SESSION_TYPE = 'memcache'
+sess = Session()
 
 db = SQLAlchemy()
 
@@ -77,21 +85,10 @@ class User(db.Model):
         return self._authenticated
 
 db.init_app(app)
+
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
-
-
-llm = LibertyLLM(
-    endpoint = config.get('API', 'GENERATION_ENDPOINT'),
-)
-
-emb = LibertyEmbeddings(
-    endpoint = config.get('API', 'EMBEDDING_ENDPOINT'),
-)
-
-active_bots = {}
-active_conversations = {}
 
 # ------------------------
 @app.route("/")
@@ -112,13 +109,6 @@ def login_post():
     if user and check_password_hash(user.password, password.strip()):
         # if the above check passes, then we know the user has the right credentials
         login_user(user, remember=remember)
-        active_bots[user.id] = initialize_chatbot(
-            name=user.name,
-            email=user.email,
-            llm = llm,
-            emb = emb,
-            sqlstring = SQLALCHEMY_DATABASE_URI,
-        )
         return redirect(url_for('chatbot'))
     else:
         flash('Please check your login details and try again.')
@@ -182,8 +172,6 @@ def post_profile_avatar():
 @app.route('/logout')
 @login_required
 def logout():
-    if current_user.id in active_bots:
-        del active_bots[current_user.id]
     logout_user()
     return redirect(url_for('chatbot'))
 
@@ -215,15 +203,7 @@ def chatbot():
 @app.route("/chatbot/get_chat_history")
 @login_required
 def chatbot_get_chat_history():
-    if current_user.id not in active_bots:
-        active_bots[current_user.id] = initialize_chatbot(
-            name = current_user.name,
-            email = current_user.email,
-            llm = llm,
-            emb = emb,
-            sqlstring = SQLALCHEMY_DATABASE_URI,
-        )
-    return active_bots[current_user.id].chat_history()
+    return current_chatbot().chat_history()
 
 @app.route("/chatbot/start_generation")
 @login_required
@@ -233,16 +213,7 @@ def chatbot_start_generation():
     except:
         return ""
 
-    if current_user.id not in active_bots:
-        active_bots[current_user.id] = initialize_chatbot(
-            name = current_user.name,
-            email = current_user.email,
-            llm = llm,
-            emb = emb,
-            sqlstring = SQLALCHEMY_DATABASE_URI,
-        )
-
-    uuid = active_bots[current_user.id].start_generations(message)
+    uuid = current_chatbot().start_generations(message)
 
     return uuid if uuid else ""
 
@@ -254,13 +225,11 @@ def chatbot_stream():
     except:
         return Response('data: [DONE]\n\n', mimetype="text/event-stream")
 
-    if current_user.id not in active_bots:
-        return Response('data: [DONE]\n\n', mimetype="text/event-stream")
-
     def eventStream(bot):
         index = 0
         token = ""
         while token != "[DONE]":
+            print(token)
             token = bot.get_part(uuid, index)
             if token == "[BUSY]":
                 time.sleep(0.1)
@@ -268,7 +237,24 @@ def chatbot_stream():
                 index += 1
                 yield 'data: {}\n\n'.format(token)
 
-    return Response(eventStream(active_bots[current_user.id]), mimetype="text/event-stream")
+    return Response(eventStream(current_chatbot()), mimetype="text/event-stream")
+
+active_chatbots = {}
+
+@login_required
+def current_chatbot():
+    global active_chatbots
+    if current_user.is_authenticated:
+        if current_user.id not in active_chatbots:
+            active_chatbots[current_user.id] = initialize_chatbot(
+                name = current_user.name,
+                email = current_user.email,
+                llm = LibertyLLM(endpoint = config.get('API', 'GENERATION_ENDPOINT')),
+                emb = LibertyEmbeddings(endpoint = config.get('API', 'EMBEDDING_ENDPOINT')),
+                sqlstring = SQLALCHEMY_DATABASE_URI,
+            )
+        return active_chatbots[current_user.id]
+    return None
 
 # --------
 

@@ -2,6 +2,7 @@ wheel
 uwsgi
 flask
 gevent
+psycopg
 flask
 flask-login
 flask-sqlalchemy
