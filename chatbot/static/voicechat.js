@@ -27,18 +27,18 @@ config = {
 
 var AudioContext = window.AudioContext || window.webkitAudioContext;
 var recording = false;
+var audioBuffer = {};
 
 (function() {
     if (!AudioContext) {
         console.log("No Audio");
         return;
     }
-    //initializeAudio();
 })();
 
 function initializeAudio(uuid) {
     actx = new AudioContext();
-    console.log("Loading Audio Buffer");
+    console.log("Loading Audio Buffer: "+uuid);
     var xmlHTTP = new XMLHttpRequest();
     xmlHTTP.open(
         "GET",
@@ -52,7 +52,7 @@ function initializeAudio(uuid) {
             this.response,
             function(buffer) {
                 console.log("Ready");
-                audioBuffer = buffer;
+                audioBuffer[uuid] = buffer;
                 // Run
                 analyser = actx.createAnalyser();
                 analyser.fftSize = 256;
@@ -64,7 +64,7 @@ function initializeAudio(uuid) {
                 analyser.connect(actx.destination);
                 frequencyDataLen = analyser.frequencyBinCount;
                 frequencyData = new Uint8Array(frequencyDataLen);
-                play();
+                play(uuid);
             },
             function() {
                 console.log("Error decoding audio data");
@@ -99,7 +99,6 @@ function emitLine(){
 
 function clear(){
     var avg = averageFrequency();
-    
     ctx.beginPath();
     var grd = ctx.createLinearGradient(w/2, 0, w/2, h);
     grd.addColorStop(0, "hsl("+(config.hueStart + npt * config.colorSpeed)+", 35%, 10%");
@@ -229,12 +228,13 @@ function render() {
     requestAnimationFrame(render);
 }
 
-function play() {
+function play(uuid) {
+    console.log("Playing "+uuid);
     dotEmitter = setInterval(emitDot, 50);
     lineEmitter = setInterval(emitLine, 100);
     bufferSource = null;
     bufferSource = actx.createBufferSource();
-    bufferSource.buffer = audioBuffer;
+    bufferSource.buffer = audioBuffer[uuid];
     bufferSource.loop = false;
     bufferSource.connect(gainNode);
     bufferSource.start();
@@ -264,22 +264,14 @@ var constraints = {
     video: false
 } 
 
-var gumStream;
-//stream from getUserMedia() 
-var rec;
-//Recorder.js object 
-var input;
-//MediaStreamAudioSourceNode we'll be recording 
-// shim for AudioContext when it's not avb. 
 var AudioContext = window.AudioContext || window.webkitAudioContext;
-var audioRecordingContext;
 
 function uploadRecording(blob) {
     var filename = new Date().toISOString();
     var xhr = new XMLHttpRequest();
     xhr.onload = function(e) {
         if (this.readyState === 4) {
-            var uuid = e.target.responseText;
+            uuid = e.target.responseText;
             var eventSource = new EventSource("/voicechat/stream?uuid="+uuid);
             eventSource.onmessage = function(e) {
                 console.log(e.data);
@@ -296,13 +288,10 @@ function uploadRecording(blob) {
     xhr.send(fd);
 }
 
-navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
-    audioRecordingContext = new AudioContext;
-    gumStream = stream;
-    input = audioRecordingContext.createMediaStreamSource(stream);
-    rec = new Recorder(input, {numChannels: 1});   
-});
-
+var gumStream;
+var rec;
+var audioRecordingContext;
+var input;
 function toggleRecording() {
     if(recording) {
         recording = false;
@@ -311,9 +300,15 @@ function toggleRecording() {
         gumStream.getAudioTracks()[0].stop();
         rec.exportWAV(uploadRecording);
     } else {
-        rec.record();
-        recording = true;
-        document.getElementById("recorder").classList.add('active');
+        audioRecordingContext = new AudioContext;
+        navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+            gumStream = stream;
+            input = audioRecordingContext.createMediaStreamSource(stream);
+            rec = new Recorder(input, {numChannels: 1});
+            rec.record();
+            recording = true;
+            document.getElementById("recorder").classList.add('active');
+        });
     }
 };
 

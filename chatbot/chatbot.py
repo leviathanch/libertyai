@@ -157,7 +157,7 @@ def signup_post():
 @app.route('/profile')
 @login_required
 def profile():
-    return render_template("profile.html", name=current_user.name)
+    return render_template("profile.html", name=current_user.name, email=current_user.email)
 
 @app.route('/profile/username', methods=['POST'])
 @login_required
@@ -204,7 +204,7 @@ def post_voicechat_submit():
     if 'audio_data' in request.files:
         uid = str(uuid.uuid1())
         f = request.files['audio_data']
-        current_input_audio_files[uid]=f.read()
+        current_input_audio_files[uid] = f.read()
         return uid
     return "Error"
 
@@ -212,14 +212,14 @@ def post_voicechat_submit():
 @login_required
 def voicechat_stream():
     try:
-        uuid = request.args.get('uuid')
+        uid = request.args.get('uuid')
     except:
         return Response('data: [ERROR]\n\n', mimetype="text/event-stream")
 
-    def eventStream(uuid):
+    def eventStream(bot, uid):
         response = requests.post(
             config.get('API', 'WHISPER_ENDPOINT'),
-            files = {'file': current_input_audio_files[uuid]},
+            files = {'file': current_input_audio_files[uid]},
         )
         language = 'en'
         text = ''
@@ -228,30 +228,33 @@ def voicechat_stream():
             for result in reply['results']:
                 language = result['language']
                 text = result['text']
+            print("TTS: "+text)
+            #bot = current_chatbot()
+            text = bot(text)
             onsei = gTTS(text=text, lang=language)
             buf = BytesIO()
             onsei.write_to_fp(buf)
-            current_audio_files[uuid] = buf.getvalue()
+            current_audio_files[uid] = buf.getvalue()
             buf.close()
-            del current_input_audio_files[uuid]
+            del current_input_audio_files[uid]
             yield 'data: [DONE]\n\n'
 
         yield 'data: [ERROR]\n\n'
 
-    return Response(eventStream(uuid), mimetype="text/event-stream")
+    return Response(eventStream(current_chatbot(), uid), mimetype="text/event-stream")
 
 @app.route('/voicechat/audio')
 @login_required
 def voicechat_audio():
     try:
-        uuid = request.args.get('uuid')
+        uid = request.args.get('uuid')
     except:
         return "ERROR!"
 
-    response = make_response(current_audio_files[uuid])
+    response = make_response(current_audio_files[uid])
     response.headers['Content-Type'] = 'audio/wav'
     response.headers['Content-Disposition'] = 'attachment; filename=sound.wav'
-    del current_audio_files[uuid]
+    del current_audio_files[uid]
 
     return response
 
@@ -274,15 +277,15 @@ def chatbot_start_generation():
     except:
         return ""
 
-    uuid = current_chatbot().start_generations(message)
+    uid = current_chatbot().start_generations(message)
 
-    return uuid if uuid else ""
+    return uid if uid else ""
 
 @app.route('/chatbot/stream')
 @login_required
 def chatbot_stream():
     try:
-        uuid = request.args.get('uuid')
+        uid = request.args.get('uuid')
     except:
         return Response('data: [DONE]\n\n', mimetype="text/event-stream")
 
@@ -291,7 +294,7 @@ def chatbot_stream():
         token = ""
         while token != "[DONE]":
             print(token)
-            token = bot.get_part(uuid, index)
+            token = bot.get_part(uid, index)
             if token == "[BUSY]":
                 time.sleep(0.1)
             else:
@@ -301,7 +304,6 @@ def chatbot_stream():
     return Response(eventStream(current_chatbot()), mimetype="text/event-stream")
 
 active_chatbots = {}
-
 @login_required
 def current_chatbot():
     global active_chatbots
