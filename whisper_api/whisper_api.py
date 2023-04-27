@@ -16,9 +16,9 @@ app = Flask(__name__)
 def hello():
     return "Whisper Hello World!"
 
-
 @app.route('/whisper', methods=['POST'])
 def handler():
+    print(request.files)
     if not request.files:
         # If the user didn't submit any files, return a 400 (Bad Request) error.
         abort(400)
@@ -37,10 +37,10 @@ def handler():
         # Let's get the transcript of the temporary file.
         result = model.transcribe(temp.name)
         # Now we can store the result object for this file.
-        results.append({
-            'filename': filename,
-            'transcript': result['text'],
-        })
+        results.append(result)
 
     # This will be automatically converted to JSON.
     return {'results': results}
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5001)
