@@ -27,9 +27,6 @@ class LibertyLLM(LLM):
         i = 0
         while text != "[DONE]":
             text = self.get_partial(uuid, i)
-            if text == "[BUSY]":
-                time.sleep(0.1)
-                continue
             i += 1
             if text != "[DONE]":
                 ret += text
