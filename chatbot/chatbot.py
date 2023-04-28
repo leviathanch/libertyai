@@ -305,11 +305,8 @@ def chatbot_stream():
         while token != "[DONE]":
             print(token)
             token = bot.get_part(uid, index)
-            if token == "[BUSY]":
-                time.sleep(0.1)
-            else:
-                index += 1
-                yield 'data: {}\n\n'.format(token)
+            index += 1
+            yield 'data: {}\n\n'.format(token)
 
     return Response(eventStream(current_chatbot(session["user_id"])), mimetype="text/event-stream")
 
