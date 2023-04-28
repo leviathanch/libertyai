@@ -3,6 +3,7 @@ import os
 import time
 import requests
 import uuid
+from tempfile import mkdtemp
 
 from gtts import gTTS
 from io import BytesIO
@@ -54,9 +55,6 @@ from LibertyAI.liberty_config import get_configuration
 from LibertyAI.liberty_embedding import LibertyEmbeddings
 from LibertyAI.liberty_llm import LibertyLLM
 
-#from langchain.llms import LlamaCpp
-#from langchain.embeddings import LlamaCppEmbeddings
-
 config = get_configuration()
 SQLALCHEMY_DATABASE_URI = 'postgresql://'
 SQLALCHEMY_DATABASE_URI += config.get('DATABASE', 'PGSQL_USER') + ':'
@@ -66,13 +64,22 @@ SQLALCHEMY_DATABASE_URI += config.get('DATABASE', 'PGSQL_SERVER_PORT') + '/'
 SQLALCHEMY_DATABASE_URI += config.get('DATABASE', 'PGSQL_DATABASE')
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = config.get('DEFAULT', 'SECRET_KEY')
+
+#app.secret_key = config.get('DEFAULT', 'SECRET_KEY')
+#app.config['SECRET_KEY'] = config.get('DEFAULT', 'SECRET_KEY')
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
-app.app_context().push()
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["SESSION_FILE_DIR"] = mkdtemp()
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_USE_SIGNER"] = True
+app.config["SECRET_KEY"] = os.urandom(24)
+#app.config["session_cookie_name"] = 'session_cookie_name'
+app.session_cookie_name = "session_cookie_name"
 
-SESSION_TYPE = 'memcache'
-sess = Session()
+#app.app_context().push()
+#SESSION_TYPE = 'memcache'
 
 db = SQLAlchemy()
 
@@ -100,6 +107,8 @@ login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
 
+sess = Session(app)
+
 # ------------------------
 @app.route("/")
 def home():
@@ -119,6 +128,7 @@ def login_post():
     if user and check_password_hash(user.password, password.strip()):
         # if the above check passes, then we know the user has the right credentials
         login_user(user, remember=remember)
+        session["user_id"] = user.id
         return redirect(url_for('chatbot'))
     else:
         flash('Please check your login details and try again.')
@@ -229,7 +239,7 @@ def voicechat_stream():
                 language = result['language']
                 text = result['text']
             print("TTS: "+text)
-            #bot = current_chatbot()
+            #bot = current_chatbot(session["user_id"])
             text = bot(text)
             onsei = gTTS(text=text, lang=language)
             buf = BytesIO()
@@ -241,7 +251,7 @@ def voicechat_stream():
 
         yield 'data: [ERROR]\n\n'
 
-    return Response(eventStream(current_chatbot(), uid), mimetype="text/event-stream")
+    return Response(eventStream(current_chatbot(session["user_id"]), uid), mimetype="text/event-stream")
 
 @app.route('/voicechat/audio')
 @login_required
@@ -267,7 +277,7 @@ def chatbot():
 @app.route("/chatbot/get_chat_history")
 @login_required
 def chatbot_get_chat_history():
-    return current_chatbot().chat_history()
+    return current_chatbot(session["user_id"]).chat_history()
 
 @app.route("/chatbot/start_generation")
 @login_required
@@ -277,7 +287,7 @@ def chatbot_start_generation():
     except:
         return ""
 
-    uid = current_chatbot().start_generations(message)
+    uid = current_chatbot(session["user_id"]).start_generations(message)
 
     return uid if uid else ""
 
@@ -301,12 +311,12 @@ def chatbot_stream():
                 index += 1
                 yield 'data: {}\n\n'.format(token)
 
-    return Response(eventStream(current_chatbot()), mimetype="text/event-stream")
+    return Response(eventStream(current_chatbot(session["user_id"])), mimetype="text/event-stream")
 
 active_chatbots = {}
-@login_required
-def current_chatbot():
+def current_chatbot(user_id):
     global active_chatbots
+    current_user = load_user(user_id)
     if current_user.is_authenticated:
         if current_user.id not in active_chatbots:
             active_chatbots[current_user.id] = initialize_chatbot(
