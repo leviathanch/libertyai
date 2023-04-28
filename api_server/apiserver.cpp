@@ -320,17 +320,25 @@ void fetch_tokens(
     int i = std::stoi(index);
     if( !available_tokens.count(uuid) && !generator_threads.count(uuid) ) {
         message_value.SetString("[DONE]");
-    } else if( available_tokens[uuid].size() > i ) {
-        std::string text = available_tokens[uuid][i];
-        message_value.SetString(text.c_str(), response.GetAllocator());
-        if ( text == "[DONE]" ) {
-            generator_threads[uuid]->join();
-            delete generator_threads[uuid];
-            generator_threads.erase(uuid);
-            available_tokens.erase(uuid);
-        }
-    } else {
-        message_value.SetString("[BUSY]");
+        response.AddMember("text", message_value, response.GetAllocator());
+        Writer<StringBuffer> writer(response_buffer);
+        response.Accept(writer);
+        return;
+    }
+
+    while ( available_tokens[uuid].size() < i+1 ) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    std::string text = available_tokens[uuid][i];
+    message_value.SetString(text.c_str(), response.GetAllocator());
+
+    // clean up. we're done here
+    if ( text == "[DONE]" ) {
+        generator_threads[uuid]->join();
+        delete generator_threads[uuid];
+        generator_threads.erase(uuid);
+        available_tokens.erase(uuid);
     }
 
     response.AddMember("text", message_value, response.GetAllocator());
