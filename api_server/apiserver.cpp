@@ -323,27 +323,27 @@ void fetch_tokens(
         response.AddMember("text", message_value, response.GetAllocator());
         Writer<StringBuffer> writer(response_buffer);
         response.Accept(writer);
-        return;
+    } else {
+
+        while ( available_tokens[uuid].size() < i+1 ) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+
+        std::string text = available_tokens[uuid][i];
+        message_value.SetString(text.c_str(), response.GetAllocator());
+
+        // clean up. we're done here
+        if ( text == "[DONE]" ) {
+            generator_threads[uuid]->join();
+            delete generator_threads[uuid];
+            generator_threads.erase(uuid);
+            available_tokens.erase(uuid);
+        }
+
+        response.AddMember("text", message_value, response.GetAllocator());
+        Writer<StringBuffer> writer(response_buffer);
+        response.Accept(writer);
     }
-
-    while ( available_tokens[uuid].size() < i+1 ) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    }
-
-    std::string text = available_tokens[uuid][i];
-    message_value.SetString(text.c_str(), response.GetAllocator());
-
-    // clean up. we're done here
-    if ( text == "[DONE]" ) {
-        generator_threads[uuid]->join();
-        delete generator_threads[uuid];
-        generator_threads.erase(uuid);
-        available_tokens.erase(uuid);
-    }
-
-    response.AddMember("text", message_value, response.GetAllocator());
-    Writer<StringBuffer> writer(response_buffer);
-    response.Accept(writer);
 }
 
 void handle_request(
