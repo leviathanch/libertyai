@@ -553,8 +553,13 @@ int main(int argc, char ** argv) {
         boost::asio::write(socket, boost::asio::buffer(response_string));
 
         // Close the connection
-        socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
-        socket.close();
+        try {
+            socket.shutdown(boost::asio::ip::tcp::socket::shutdown_both);
+            socket.close();
+        }
+        catch (...) {
+            std::cout << "Connection not properly closed" << std::endl;
+        }
     }
     return 0;
 }
