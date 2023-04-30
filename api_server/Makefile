@@ -7,20 +7,26 @@ LDFLAGS += -lboost_thread
 LDFLAGS += -lboost_program_options
 LDFLAGS += -lpthread
 
-LDFLAGS += -lOpenCL
-LDFLAGS += -lopenblas
-LDFLAGS += -L/usr/local/cuda-12.1/targets/x86_64-linux/lib -lcublas_static -lculibos -lcudart_static -lcublasLt_static
+LDFLAGS_OPENCL = LDFLAGS
+LDFLAGS_CUDA = LDFLAGS
+
+LDFLAGS_OPENCL += -lOpenCL -lclblast
+LDFLAGS_CUDA += -L/usr/local/cuda/lib64 -lcublas -lculibos -lcudart_static -lcublasLt
 
 $(info I CXXFLAGS: $(CXXFLAGS))
 $(info I LDFLAGS: $(LDFLAGS))
 
-all: apiserver
+llama_clblast:
+	cd koboldcpp && make main LLAMA_CLBLAST=1 LLAMA_ACCELERATE=1 && cd ..
 
-llama:
-	cd koboldcpp && make main LLAMA_CUBLAS=1 && cd ..
+apiserver_opencl: llama_clblast apiserver.cpp
+	$(CXX) $(CXXFLAGS) apiserver.cpp koboldcpp/ggml.o koboldcpp/ggml-opencl.o koboldcpp/llama.o koboldcpp/common.o -o apiserver $(LDFLAGS_OPENCL)
 
-apiserver: llama apiserver.cpp
-	$(CXX) $(CXXFLAGS) apiserver.cpp koboldcpp/ggml.o koboldcpp/ggml-cuda.o koboldcpp/llama.o koboldcpp/common.o -o apiserver $(LDFLAGS)
+llama_cuda:
+	cd koboldcpp && make main LLAMA_CLBLAST=1 LLAMA_ACCELERATE=1 && cd ..
+
+apiserver_cuda: llama_cuda apiserver.cpp
+	$(CXX) $(CXXFLAGS) apiserver.cpp koboldcpp/ggml.o koboldcpp/ggml-cuda.o koboldcpp/llama.o koboldcpp/common.o -o apiserver $(LDFLAGS_CUDA)
 
 clean:
 	rm -f apiserver

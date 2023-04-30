@@ -55,6 +55,7 @@ std::vector<std::string> last_partial_special;
 struct liberty_args {
     std::string model;
     std::vector<std::string> stop;
+    std::unordered_map<llama_token, float> logit_bias;
     int n_threads;
     int n_batch;
     float repeat_penalty;
@@ -66,6 +67,14 @@ struct liberty_args {
     bool input_noecho;
     int verbosity_level;
     bool embedding;
+    float tfs_z;
+    bool penalize_nl;
+    int mirostat;
+    float typical_p;
+    float mirostat_eta;
+    float mirostat_tau;
+    float frequency_penalty;
+    float presence_penalty;
 };
 
 bool contains_stop(std::string text, std::vector<std::string> tokens) {
@@ -152,18 +161,87 @@ int predict_text(
         embd.clear();
 
         if ((int) embd_inp.size() <= n_consumed) {
-            // out of user input, sample next token
+           // out of user input, sample next token
+            const float   temp            = params.temp;
+            const int32_t top_k           = params.top_k <= 0 ? llama_n_vocab(ctx) : params.top_k;
+            const float   top_p           = params.top_p;
+            const float   tfs_z           = params.tfs_z;
+            const float   typical_p       = params.typical_p;
+            const int32_t repeat_last_n   = params.repeat_last_n < 0 ? n_ctx : params.repeat_last_n;
+            const float   repeat_penalty  = params.repeat_penalty;
+            const float   alpha_presence  = params.presence_penalty;
+            const float   alpha_frequency = params.frequency_penalty;
+            const int     mirostat        = params.mirostat;
+            const float   mirostat_tau    = params.mirostat_tau;
+            const float   mirostat_eta    = params.mirostat_eta;
+            const bool    penalize_nl     = params.penalize_nl;
+
+            // optionally save the session on first sample (for faster prompt loading next time)
+            /*if (!path_session.empty() && need_to_save_session) {
+                need_to_save_session = false;
+                llama_save_session_file(ctx, path_session.c_str(), session_tokens.data(), session_tokens.size());
+            }*/
+
             llama_token id = 0;
             auto logits = llama_get_logits(ctx);
-            id = llama_sample_top_p_top_k(
-                ctx,
-                last_n_tokens.data() + n_ctx - params.repeat_last_n,
-                params.repeat_last_n, params.top_k, params.top_p, params.temp, params.repeat_penalty
-            );
+            auto n_vocab = llama_n_vocab(ctx);
+
+            // Apply params.logit_bias map
+            for (auto it = params.logit_bias.begin(); it != params.logit_bias.end(); it++) {
+                logits[it->first] += it->second;
+            }
+
+            std::vector<llama_token_data> candidates;
+            candidates.reserve(n_vocab);
+            for (llama_token token_id = 0; token_id < n_vocab; token_id++) {
+                candidates.emplace_back(llama_token_data{token_id, logits[token_id], 0.0f});
+            }
+
+            llama_token_data_array candidates_p = { candidates.data(), candidates.size(), false };
+
+            // Apply penalties
+            float nl_logit = logits[llama_token_nl()];
+            auto last_n_repeat = std::min(std::min((int)last_n_tokens.size(), repeat_last_n), n_ctx);
+            llama_sample_repetition_penalty(ctx, &candidates_p,
+                last_n_tokens.data() + last_n_tokens.size() - last_n_repeat,
+                last_n_repeat, repeat_penalty);
+            llama_sample_frequency_and_presence_penalties(ctx, &candidates_p,
+                last_n_tokens.data() + last_n_tokens.size() - last_n_repeat,
+                last_n_repeat, alpha_frequency, alpha_presence);
+            if (!penalize_nl) {
+                logits[llama_token_nl()] = nl_logit;
+            }
+
+            if (temp <= 0) {
+                // Greedy sampling
+                id = llama_sample_token_greedy(ctx, &candidates_p);
+            } else {
+                if (mirostat == 1) {
+                    static float mirostat_mu = 2.0f * mirostat_tau;
+                    const int mirostat_m = 100;
+                    llama_sample_temperature(ctx, &candidates_p, temp);
+                    id = llama_sample_token_mirostat(ctx, &candidates_p, mirostat_tau, mirostat_eta, mirostat_m, &mirostat_mu);
+                } else if (mirostat == 2) {
+                    static float mirostat_mu = 2.0f * mirostat_tau;
+                    llama_sample_temperature(ctx, &candidates_p, temp);
+                    id = llama_sample_token_mirostat_v2(ctx, &candidates_p, mirostat_tau, mirostat_eta, &mirostat_mu);
+                } else {
+                    // Temperature sampling
+                    llama_sample_top_k(ctx, &candidates_p, top_k);
+                    llama_sample_tail_free(ctx, &candidates_p, tfs_z);
+                    llama_sample_typical(ctx, &candidates_p, typical_p);
+                    llama_sample_top_p(ctx, &candidates_p, top_p);
+                    llama_sample_temperature(ctx, &candidates_p, temp);
+                    id = llama_sample_token(ctx, &candidates_p);
+                }
+            }
+            // printf("`%d`", candidates_p.size);
             last_n_tokens.erase(last_n_tokens.begin());
             last_n_tokens.push_back(id);
+
             // add it to the context
             embd.push_back(id);
+
             // echo this to console
             input_noecho = false;
         } else {
@@ -369,10 +447,7 @@ void handle_request(
     // Process the request based on the requested path
     if (request.method() == boost::beast::http::verb::post && request.target() == "/api/completion/submit") {
         if (doc.HasMember("text") && doc["text"].IsString()) {
-            liberty_args new_params;
-            new_params.n_threads = params.n_threads;
-            new_params.input_noecho = params.input_noecho;
-            new_params.model = params.model;
+            liberty_args new_params = params;
             new_params.embedding = false;
             new_params.top_k = (doc.HasMember("top_k") && doc["top_k"].IsString()) ? std::stoi(doc["top_k"].GetString()) : params.top_k;
             new_params.top_p = (doc.HasMember("top_p") && doc["top_p"].IsString()) ? std::stof(doc["top_p"].GetString()) : params.top_p;
@@ -467,6 +542,14 @@ bool parse_params(int ac, char ** av, liberty_args &params) {
     params.n_ctx = 2048;
     params.input_noecho = true;
     params.verbosity_level = 0;
+    params.tfs_z = 1.00f;
+    params.penalize_nl = false;
+    params.typical_p = 1.00f;
+    params.frequency_penalty = 0.00f;
+    params.presence_penalty = 0.00f;
+    params.mirostat = 0;
+    params.mirostat_tau = 5.00f;
+    params.mirostat_eta = 0.10f;
 
     po::options_description desc("Options for the API server");
     desc.add_options()
