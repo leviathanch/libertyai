@@ -7,8 +7,8 @@ LDFLAGS += -lboost_thread
 LDFLAGS += -lboost_program_options
 LDFLAGS += -lpthread
 
-LDFLAGS_OPENCL = LDFLAGS
-LDFLAGS_CUDA = LDFLAGS
+LDFLAGS_OPENCL = $(LDFLAGS)
+LDFLAGS_CUDA = $(LDFLAGS)
 
 LDFLAGS_OPENCL += -lOpenCL -lclblast
 LDFLAGS_CUDA += -L/usr/local/cuda/lib64 -lcublas -lculibos -lcudart_static -lcublasLt
