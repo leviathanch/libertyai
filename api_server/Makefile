@@ -23,7 +23,7 @@ apiserver_opencl: llama_clblast apiserver.cpp
 	$(CXX) $(CXXFLAGS) apiserver.cpp koboldcpp/ggml.o koboldcpp/ggml-opencl.o koboldcpp/llama.o koboldcpp/common.o -o apiserver $(LDFLAGS_OPENCL)
 
 llama_cuda:
-	cd koboldcpp && make main LLAMA_CLBLAST=1 LLAMA_ACCELERATE=1 && cd ..
+	cd koboldcpp && make main LLAMA_CUBLAS=1 LLAMA_ACCELERATE=1 && cd ..
 
 apiserver_cuda: llama_cuda apiserver.cpp
 	$(CXX) $(CXXFLAGS) apiserver.cpp koboldcpp/ggml.o koboldcpp/ggml-cuda.o koboldcpp/llama.o koboldcpp/common.o -o apiserver $(LDFLAGS_CUDA)
