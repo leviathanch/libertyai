@@ -25,97 +25,156 @@ from sentence_transformers import SentenceTransformer, util
 
 import argparse
 
-from rwkv.model import RWKV
-from rwkv.utils import PIPELINE
-import tokenizers
+# Threading stuff for generation job
+generation_event = threading.Event()
+tokens = {}
+processes = {}
+current_job_params = {}
 
+# Model loading
 def load_model(config):
     args = types.SimpleNamespace()
     args.RUN_DEVICE = "cuda"
     args.FLOAT_MODE = "fp16"
     os.environ["RWKV_JIT_ON"] = '1'
-    os.environ["RWKV_RUN_DEVICE"] = '0'
-    model_kwargs = {}
+    os.environ["RWKV_RUN_DEVICE"] = 'cuda'
+    args.RUN_DEVICE = "cuda"
+    args.ctx_len=1024
+    args.MODEL_NAME = "/home/user/RWKV/RWKV-4-Raven-3B-v9-Eng99%-Other1%-20230411-ctx4096"
+
+    from rwkv.model import RWKV
     model = RWKV(
         "/home/user/RWKV/RWKV-4-Raven-3B-v9-Eng99%-Other1%-20230411-ctx4096.pth",
-        strategy="cuda:0 fp16 *10 -> cuda:1 fp16 *8",
-        **model_kwargs
+        'cuda:0 fp16 -> cuda:1 fp16'
+        #'cuda:0 fp16i8 -> cuda:1 fp16i8'
     )
-    tokenizer = tokenizers.Tokenizer.from_file("/home/user/RWKV/20B_tokenizer.json")
     model.share_memory()
     model.eval()
-    return model, tokenizer
 
-tokens = {}
-processes = {}
+    import tokenizers
+    tokenizer = tokenizers.Tokenizer.from_file("/home/user/RWKV/20B_tokenizer.json")
 
-def run_rnn(tokens):
-    AVOID_REPEAT = "，：？！"
+    from rwkv.utils import PIPELINE
+    pipeline = PIPELINE(model, "/home/user/RWKV/20B_tokenizer.json")
+
+    return model, tokenizer, pipeline
+
+def run_rnn(model, pipeline, _tokens: List[str], newline_adj: int = 0, CHUNK_LEN: int = 256, model_tokens = [], model_state: Any = None) -> Any:
     AVOID_REPEAT_TOKENS = []
+    AVOID_REPEAT = "，：？！"
     for i in AVOID_REPEAT:
-        dd = tokenizer.encode(i)
+        dd = pipeline.encode(i)
         assert len(dd) == 1
         AVOID_REPEAT_TOKENS += dd
 
-    model_tokens = []
-    model_state = None
-    tokens = [int(x) for x in tokens]
+    tokens = [int(x) for x in _tokens]
     model_tokens += tokens
-    out, model_state = model.forward(tokens, model_state)
-    #out = out.tolist()
-    print("out", out)
-    out[0] = -999999999  # disable <|endoftext|>
-    #out[187] += newline_adj # adjust \n probability
+
+    out: Any = None
+
+    while len(tokens) > 0:
+        out, model_state = model.forward(
+            tokens[: CHUNK_LEN], model_state
+        )
+        tokens = tokens[CHUNK_LEN :]
+    END_OF_LINE = 187
+    out[END_OF_LINE] += newline_adj  # adjust \n probability
+
     if model_tokens[-1] in AVOID_REPEAT_TOKENS:
         out[model_tokens[-1]] = -999999999
+
     return out, model_tokens, model_state
 
-def generation_job(data):
+def generation_job(model, tokenizer, pipeline, data):
+    uid = data['uuid']
+    model_tokens = []
+    model_state = None
+    
+    tokens[uid] = []
 
     sem.acquire()
-    logits, model_tokens, model_state = run_rnn(tokenizer.encode(data['prompt']).ids)
+    logits, model_tokens, model_state = run_rnn(
+        model,
+        pipeline,
+        tokenizer.encode(data['prompt']).ids,
+        CHUNK_LEN = data['CHUNK_LEN'],
+        model_tokens = model_tokens,
+        model_state = model_state
+    )
     sem.release()
 
     begin = len(model_tokens)
     out_last = begin
     decoded = ""
+    occurrence: Dict = {}
+
     for i in range(int(data['max_tokens_per_generation'])):
+        for n in occurrence:
+            logits[n] -= (
+                data['penalty_alpha_presence'] + occurrence[n] * data['penalty_alpha_frequency']
+            )
         sem.acquire()
-        token = tokenizer.sample_logits(
+        token = pipeline.sample_logits(
             logits,
-            model_tokens,
-            1024, # args.ctx_len,
             temperature=data['temperature'],
             top_p=data['top_p'],
         )
         sem.release()
 
+        END_OF_TEXT = 0
+        if token == END_OF_TEXT:
+            break
+        if token not in occurrence:
+            occurrence[token] = 1
+        else:
+            occurrence[token] += 1
+
         sem.acquire()
-        logits, model_tokens, model_state = run_rnn([token])
+        logits, model_tokens, model_state = run_rnn(
+            model,
+            pipeline,
+            [token],
+            CHUNK_LEN = data['CHUNK_LEN'],
+            model_tokens = model_tokens,
+            model_state = model_state
+        )
         sem.release()
-        xxx = tokenizer.decode(model_tokens[out_last:])
+        xxx = tokenizer.decode([token])
         print(xxx)
+        tokens[uid].append(xxx)
+
+def generation_worker():
+    model, tokenizer, pipeline = load_model(config)
+    while True:
+        try:
+            generation_event.wait()
+            generation_job(model, tokenizer, pipeline, current_job_params)
+            generation_event.clear()
+        except KeyboardInterrupt:
+            print("Ctrl+C pressed. Exiting...")
+            break
 
 def register_model(app):
     @app.route('/api/completion/submit', methods=['POST'])
     def completion_submit():
+        if generation_event.is_set():
+            return {'status': "Busy: System is busy."}
+
         data = request.get_json()
         if "text" not in data:
-            return {'error': "No input field provided"}
+            return {'status': "Erros: No input field provided"}
 
         uid = str(uuid.uuid4())
-        job_params = {}
-        job_params['max_tokens_per_generation'] = int(data['max_new_tokens']) if 'max_new_tokens' in data else 256
-        job_params['temperature'] = float(data['temperature']) if 'temperature' in data else 1.0
-        job_params['top_p'] = float(data['top_p']) if 'top_p' in data else 0.5
-        job_params['CHUNK_LEN'] = int(data['CHUNK_LEN']) if 'CHUNK_LEN' in data else 256
-        job_params['prompt'] = data['text']
-        job_params['uuid'] = uid
+        current_job_params['max_tokens_per_generation'] = int(data['max_new_tokens']) if 'max_new_tokens' in data else 256
+        current_job_params['temperature'] = float(data['temperature']) if 'temperature' in data else 1.0
+        current_job_params['top_p'] = float(data['top_p']) if 'top_p' in data else 0.5
+        current_job_params['CHUNK_LEN'] = int(data['CHUNK_LEN']) if 'CHUNK_LEN' in data else 256
+        current_job_params['penalty_alpha_frequency'] = float(data['penalty_alpha_frequency']) if 'penalty_alpha_frequency' in data else 0.4
+        current_job_params['penalty_alpha_presence'] = float(data['penalty_alpha_presence']) if 'penalty_alpha_presence' in data else 0.4
+        current_job_params['prompt'] = data['text']
+        current_job_params['uuid'] = uid
         tokens[uid] = []
-        print("Starting job "+uid)
-        #processes[uid] = mp.Process(target=generation_job, args=(job_params, tokenizer, model))
-        #processes[uid].start()
-        torch.jit.fork(generation_job, job_params)
+        generation_event.set()
         return {'uuid': uid}
 
     @app.route('/api/completion/fetch', methods=['POST'])
@@ -178,7 +237,6 @@ def register_sentiment(app):
             return {'error': "Invalid API key"}
 
 if __name__ == '__main__':
-    mp.set_start_method('spawn')
     parser = argparse.ArgumentParser(
         prog='LibertyAI: API server',
         description='Choose what API services to run',
@@ -196,8 +254,9 @@ if __name__ == '__main__':
         gc.freeze()
         gc.enable()
         if args.model:
-            model, tokenizer = load_model(config)
             register_model(app)
+            p = threading.Thread(target=generation_worker)
+            p.start()
         if args.embeddings:
             embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
             register_embedding(app)
