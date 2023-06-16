@@ -31,5 +31,7 @@ setup(
         'typing',
         'sentence_transformers',
         'langdetect',
+        'rwkv',
+        'tokenizers',
     ],
 )
