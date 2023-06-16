@@ -60,11 +60,6 @@ function startTypeWriterJob(hash, workerObject) {
     const typeWriterPromise = function (o, i, d) {
         return new Promise(
             function (resolve, reject) {
-                /*o.appendChild(
-                    document.createTextNode(
-                        d.charAt(i)
-                    )
-                );*/
                 o.innerText += d.charAt(i);
                 setTimeout(resolve, 100);
             }
