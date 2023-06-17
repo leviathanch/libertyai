@@ -61,7 +61,7 @@ function startTypeWriterJob(hash, workerObject) {
         return new Promise(
             function (resolve, reject) {
                 o.innerText += d.charAt(i);
-                setTimeout(resolve, 100);
+                setTimeout(resolve, 10);
             }
        );
     };
@@ -113,7 +113,7 @@ function startTypeWriterJob(hash, workerObject) {
                 workerObject.classList.remove("blinkyChat");
                 workerObject.classList.add("normalChat");
             } else {
-                setTimeout(recursiveQueueJob, 100, hash, workerObject);
+                setTimeout(recursiveQueueJob, 10, hash, workerObject);
             }
         });
     }
