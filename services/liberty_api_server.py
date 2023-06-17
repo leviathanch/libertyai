@@ -1,6 +1,8 @@
 from typing import Any
 import gc
 import uuid
+import sys
+import time
 
 from flask import Flask, request
 from gevent.pywsgi import WSGIServer
@@ -85,6 +87,19 @@ def run_rnn(model, pipeline, _tokens: List[str], newline_adj: int = 0, CHUNK_LEN
 
     return out, model_tokens, model_state
 
+def has_stop_token(text, stops):
+    for s in stops:
+        if s in text:
+            return True
+    return False
+
+def token_partial_stop(tok, stops):
+    for s in stops:
+        if tok in s:
+            return True
+    return False
+
+last_tokens = []
 def generation_job(model, tokenizer, pipeline, data):
     uid = data['uuid']
     model_tokens = []
@@ -107,6 +122,7 @@ def generation_job(model, tokenizer, pipeline, data):
     out_last = begin
     decoded = ""
     occurrence: Dict = {}
+    overallstring = ""
 
     for i in range(int(data['max_tokens_per_generation'])):
         for n in occurrence:
@@ -140,8 +156,23 @@ def generation_job(model, tokenizer, pipeline, data):
         )
         sem.release()
         xxx = tokenizer.decode([token])
-        print(xxx)
-        tokens[uid].append(xxx)
+        if token_partial_stop(xxx, data['stop']):
+            last_tokens.append(xxx)
+        else:
+            for tok in last_tokens:
+                tokens[uid].append(tok)
+                sys.stdout.write(tok)
+            last_tokens.clear()
+            tokens[uid].append(xxx)
+            sys.stdout.write(xxx)
+            sys.stdout.flush()
+
+        overallstring += xxx
+        if has_stop_token(overallstring, data['stop']):
+            last_tokens.clear()
+            break
+
+    tokens[uid].append("[DONE]")
 
 def generation_worker():
     model, tokenizer, pipeline = load_model(config)
@@ -172,6 +203,7 @@ def register_model(app):
         current_job_params['penalty_alpha_frequency'] = float(data['penalty_alpha_frequency']) if 'penalty_alpha_frequency' in data else 0.4
         current_job_params['penalty_alpha_presence'] = float(data['penalty_alpha_presence']) if 'penalty_alpha_presence' in data else 0.4
         current_job_params['prompt'] = data['text']
+        current_job_params['stop'] = data['stop'] if 'stop' in data else []
         current_job_params['uuid'] = uid
         tokens[uid] = []
         generation_event.set()
@@ -185,10 +217,10 @@ def register_model(app):
         uid = data["uuid"]
         if "index" not in data:
             return {'text': "[DONE]"}
-        sem.acquire()
-        text = tokens[uid][index] if index < len(tokens[uid]) else "[BUSY]"            
-        sem.release()
-        return {'text': text}
+        index = int(data["index"])
+        while index+1 > len(tokens[uid]):
+            time.sleep(1/1000)
+        return {'text': tokens[uid][index]}
 
 def embed_text(text):
     return embedding_model.encode([text])
